@@ -1,0 +1,18 @@
+services:
+  rabbitmq: # 1st service
+    image: rabbitmq:4.0-management
+    container_name: local-rabbitmq # Also used as hostname
+    env_file: # Location of file(s) containing the env vars. Only accessed by the container.
+      - .env
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes: # Persist the data volume
+      - rabbitmq-data:/var/lib/rabbitmq
+
+
+
+# Named volumes ONLY!
+# Persist data outside the lifecycle of the container.
+volumes:
+  rabbitmq-data:

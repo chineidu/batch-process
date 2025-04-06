@@ -25,6 +25,8 @@ class BaseSchema(BaseModel):
 Float = Annotated[float, BeforeValidator(round_probability)]
 
 class PersonSchema(BaseSchema):
+    """Schema for a person."""
+    id: str | None = Field(default=None, description="Unique identifier for the person.")
     sex: Literal["male", "female"] = Field(description="Sex of the passenger.")
     age: Float = Field(description="Age of the passenger.")
     pclass: int = Field(description="Passenger class.")

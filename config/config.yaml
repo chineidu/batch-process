@@ -1,0 +1,17 @@
+app_config:
+  data:
+    data_path: data/train.parquet
+    
+  db:
+    database: results.db
+
+  model:
+    hyperparams:
+      n_splits: 5
+      n_estimators: 100
+      max_depth: 10
+      random_state: 42
+      test_size: 0.2
+
+    artifacts:
+      model_path: models/model.pkl

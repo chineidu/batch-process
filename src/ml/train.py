@@ -17,19 +17,20 @@ from sklearn import set_config
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
+from config import app_config
 from src import PACKAGE_PATH
 
 
 set_config(transform_output="polars")
 
 
-n_splits: int = 5
-n_estimators: int = 100
-max_depth: int = 5
-random_state: int = 42
+n_splits: int = app_config.model.hyperparams.n_splits
+n_estimators: int = app_config.model.hyperparams.n_estimators
+max_depth: int = app_config.model.hyperparams.max_depth
+random_state: int = app_config.model.hyperparams.random_state
+test_size: float = app_config.model.hyperparams.test_size
 num_vars: list[str] = ["age", "pclass", "sibsp", "parch", "fare", "survived"]
 cat_vars: list[str] = ["sex", "embarked"]
-PACKAGE_PATH
 
 
 def load_data(fp: str | Path) -> pl.DataFrame:
@@ -222,8 +223,10 @@ def main() -> None:
     and saves the model and processor to disk.
     """
     print("Loading data and creating features...")
-    fp: Path = PACKAGE_PATH / "data/train.parquet"
-    data: pl.DataFrame = load_data(fp)
+    data_fp: Path = PACKAGE_PATH / app_config.data.data_path
+    model_dict_fp: Path = PACKAGE_PATH / app_config.model.artifacts.model_path
+
+    data: pl.DataFrame = load_data(data_fp)
     data = data.with_columns(
         transform_cat_column_to_lower("sex"),
         transform_age("age"),
@@ -233,7 +236,7 @@ def main() -> None:
     data_features: pl.DataFrame = prepare_features(data, processor)
     X_train, X_test = train_test_split(
         data_features,
-        test_size=0.2,
+        test_size=test_size,
         stratify=data_features["num_vars__survived"],
         random_state=random_state,
     )
@@ -241,9 +244,9 @@ def main() -> None:
     model: BaseEstimator = train_model(X_train=X_train, X_test=X_test)
     model_dict: dict[str, Any] = {"processor": processor, "model": model}
 
-    with open("model.pkl", "wb") as f:
+    with open(model_dict_fp, "wb") as f:
         joblib.dump(model_dict, f)
-    print("Model saved successfully...")
+    print(f"Model saved successfully to {model_dict_fp}")
 
 
 if __name__ == "__main__":
