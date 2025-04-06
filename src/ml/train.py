@@ -3,6 +3,7 @@ from typing import Any
 
 import joblib
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import polars as pl
 from sklearn.ensemble import RandomForestClassifier
@@ -30,12 +31,13 @@ num_vars: list[str] = ["age", "pclass", "sibsp", "parch", "fare", "survived"]
 cat_vars: list[str] = ["sex", "embarked"]
 PACKAGE_PATH
 
-def load_data(fp: str) -> pl.DataFrame:
+
+def load_data(fp: str | Path) -> pl.DataFrame:
     """Load data from a parquet file.
 
     Parameters
     ----------
-    fp : str
+    fp : str | Path
         File path to the parquet file.
 
     Returns
@@ -79,6 +81,22 @@ def transform_age(column: str, value: float = 30.00) -> pl.Expr:
         .otherwise(pl.col(column))
         .alias(column)
     )
+
+
+def transform_cat_column_to_lower(column: str) -> pl.Expr:
+    """Transform categorical column to lowercase.
+
+    Parameters
+    ----------
+    column : str
+        Name of the column to transform.
+
+    Returns
+    -------
+    pl.Expr
+        Transformed column expression with lowercase values.
+    """
+    return pl.col(column).str.to_lowercase().alias(column)
 
 
 def prepare_features(data: pl.DataFrame, processor: Pipeline) -> pl.DataFrame:
@@ -178,8 +196,8 @@ def train_model(X_train: pl.DataFrame, X_test: pl.DataFrame) -> BaseEstimator:
                 y_train_fold,
             )
 
-            y_pred_val: np.ndarray = model.predict_proba(X_test_fold)[:, 1]
-            y_pred_test: np.ndarray = model.predict_proba(X_test_)[:, 1]
+            y_pred_val: npt.NDArray[np.float64] = model.predict_proba(X_test_fold)[:, 1]
+            y_pred_test: npt.NDArray[np.float64] = model.predict_proba(X_test_)[:, 1]
             auc_val: float = roc_auc_score(y_test_fold, y_pred_val)
             auc_vals.append(auc_val)
             test_auc_vals.append(roc_auc_score(y_test_, y_pred_test))
@@ -187,8 +205,8 @@ def train_model(X_train: pl.DataFrame, X_test: pl.DataFrame) -> BaseEstimator:
         except Exception as err:
             print(f"{err}")
 
-    mean_auc_seen = np.mean(auc_vals)
-    mean_auc_unseen = np.mean(test_auc_vals)
+    mean_auc_seen: float = np.mean(auc_vals)
+    mean_auc_unseen: float = np.mean(test_auc_vals)
     print(
         f"Mean AUC [Seen]: {mean_auc_seen:.4f} | "
         f"Mean AUC [Unseen]: {mean_auc_unseen:.4f}",
@@ -206,7 +224,11 @@ def main() -> None:
     print("Loading data and creating features...")
     fp: Path = PACKAGE_PATH / "data/train.parquet"
     data: pl.DataFrame = load_data(fp)
-    data = data.with_columns(transform_age("age")).drop_nulls()
+    data = data.with_columns(
+        transform_cat_column_to_lower("sex"),
+        transform_age("age"),
+        transform_cat_column_to_lower("embarked"),
+    ).drop_nulls()
     processor: Pipeline = get_transformer(num_vars, cat_vars)
     data_features: pl.DataFrame = prepare_features(data, processor)
     X_train, X_test = train_test_split(
@@ -222,6 +244,7 @@ def main() -> None:
     with open("model.pkl", "wb") as f:
         joblib.dump(model_dict, f)
     print("Model saved successfully...")
+
 
 if __name__ == "__main__":
     main()
