@@ -1,4 +1,5 @@
 from pathlib import Path
+from pprint import pprint
 from typing import Any
 
 import joblib
@@ -6,20 +7,18 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import polars as pl
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import StratifiedKFold
+from sklearn import set_config
 from sklearn.base import BaseEstimator
 from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
-from sklearn import set_config
-from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 from config import app_config
 from src import PACKAGE_PATH
-
 
 set_config(transform_output="polars")
 
@@ -29,8 +28,9 @@ n_estimators: int = app_config.model.hyperparams.n_estimators
 max_depth: int = app_config.model.hyperparams.max_depth
 random_state: int = app_config.model.hyperparams.random_state
 test_size: float = app_config.model.hyperparams.test_size
-num_vars: list[str] = ["age", "pclass", "sibsp", "parch", "fare", "survived"]
-cat_vars: list[str] = ["sex", "embarked"]
+num_vars: list[str] = app_config.data.num_vars
+cat_vars: list[str] = app_config.data.cat_vars
+important_columns: list[str] = app_config.data.important_columns
 
 
 def load_data(fp: str | Path) -> pl.DataFrame:
@@ -46,16 +46,6 @@ def load_data(fp: str | Path) -> pl.DataFrame:
     pl.DataFrame
         DataFrame containing the selected important columns.
     """
-    important_columns: list[str] = [
-        "sex",
-        "age",
-        "pclass",
-        "sibsp",
-        "parch",
-        "fare",
-        "embarked",
-        "survived",
-    ]
     data: pl.DataFrame = pl.read_parquet(fp).select(important_columns)
 
     return data
@@ -82,6 +72,15 @@ def transform_age(column: str, value: float = 30.00) -> pl.Expr:
         .otherwise(pl.col(column))
         .alias(column)
     )
+
+
+def transform_id(column: str) -> pl.Expr:
+    """Transform ID column by concatenating "person" and a range of integers."""
+    return pl.concat_str(
+        pl.lit("person"),
+        pl.int_range(1, pl.col("fare").count() + 1),
+        separator="_",
+    ).alias(column)
 
 
 def transform_cat_column_to_lower(column: str) -> pl.Expr:
@@ -179,9 +178,7 @@ def train_model(X_train: pl.DataFrame, X_test: pl.DataFrame) -> BaseEstimator:
     auc_vals: list[float] = []
     test_auc_vals: list[float] = []
 
-    for train_idx, valid_idx in tqdm(
-        folds.split(X_train_, y_train_), desc="Training the model"
-    ):
+    for train_idx, valid_idx in tqdm(folds.split(X_train_, y_train_), desc="Training the model"):
         try:
             X_train_fold, y_train_fold = (
                 X_train_.iloc[train_idx],
@@ -204,13 +201,12 @@ def train_model(X_train: pl.DataFrame, X_test: pl.DataFrame) -> BaseEstimator:
             test_auc_vals.append(roc_auc_score(y_test_, y_pred_test))
 
         except Exception as err:
-            print(f"{err}")
+            pprint(f"{err}")
 
-    mean_auc_seen: float = np.mean(auc_vals)
-    mean_auc_unseen: float = np.mean(test_auc_vals)
-    print(
-        f"Mean AUC [Seen]: {mean_auc_seen:.4f} | "
-        f"Mean AUC [Unseen]: {mean_auc_unseen:.4f}",
+    mean_auc_seen: float = np.mean(auc_vals)  # type: ignore
+    mean_auc_unseen: float = np.mean(test_auc_vals)  # type: ignore
+    pprint(
+        f"Mean AUC [Seen]: {mean_auc_seen:.4f} | Mean AUC [Unseen]: {mean_auc_unseen:.4f}",
     )
 
     return model
@@ -222,7 +218,7 @@ def main() -> None:
     This function loads data, prepares features, trains the model,
     and saves the model and processor to disk.
     """
-    print("Loading data and creating features...")
+    pprint("Loading data and creating features...")
     data_fp: Path = PACKAGE_PATH / app_config.data.data_path
     model_dict_fp: Path = PACKAGE_PATH / app_config.model.artifacts.model_path
 
@@ -240,13 +236,13 @@ def main() -> None:
         stratify=data_features["num_vars__survived"],
         random_state=random_state,
     )
-    print("Training model...")
+    pprint("Training model...")
     model: BaseEstimator = train_model(X_train=X_train, X_test=X_test)
     model_dict: dict[str, Any] = {"processor": processor, "model": model}
 
     with open(model_dict_fp, "wb") as f:
         joblib.dump(model_dict, f)
-    print(f"Model saved successfully to {model_dict_fp}")
+    pprint(f"Model saved successfully to {model_dict_fp}")
 
 
 if __name__ == "__main__":

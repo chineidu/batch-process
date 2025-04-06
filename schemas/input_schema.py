@@ -1,13 +1,15 @@
 # type: ignore
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, BeforeValidator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 from pydantic.alias_generators import to_camel
+
 
 def round_probability(value: float) -> float:
     if isinstance(value, float):
         return round(value, 2)
     return value
+
 
 class BaseSchema(BaseModel):
     """Base schema class that inherits from Pydantic BaseModel.
@@ -22,10 +24,14 @@ class BaseSchema(BaseModel):
         from_attributes=True,
         arbitrary_types_allowed=True,
     )
+
+
 Float = Annotated[float, BeforeValidator(round_probability)]
+
 
 class PersonSchema(BaseSchema):
     """Schema for a person."""
+
     id: str | None = Field(default=None, description="Unique identifier for the person.")
     sex: Literal["male", "female"] = Field(description="Sex of the passenger.")
     age: Float = Field(description="Age of the passenger.")

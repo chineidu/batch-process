@@ -1,4 +1,5 @@
 from typing import Any
+
 import numpy as np
 import numpy.typing as npt
 import polars as pl
@@ -22,10 +23,8 @@ def get_prediction(
         features, schema=model_dict["processor"].get_feature_names_out().tolist()
     ).drop(["num_vars__survived"])
 
-    y_pred: npt.NDArray[np.float64] = model_dict["model"].predict_proba(data_features)[
-        :, 1
-    ]
-    data = data.with_columns(probability=y_pred).with_columns(
+    y_pred: npt.NDArray[np.float64] = model_dict["model"].predict_proba(data_features)[:, 1]
+    data = data.with_columns(probability=y_pred).with_columns(  # type: ignore
         survived=(pl.col("probability") > 0.5).cast(pl.Int64)
     )
     data_dict: dict[str, Any] = data.to_dicts()[0]

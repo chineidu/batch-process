@@ -1,7 +1,18 @@
 app_config:
   data:
     data_path: data/train.parquet
-    
+    batch_data_path: data/test.parquet
+    num_vars:
+      - age
+      - pclass
+      - sibsp
+      - parch
+      - fare
+      - survived
+    cat_vars:
+      - sex
+      - embarked
+
   db:
     database: results.db
 

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from omegaconf import DictConfig, OmegaConf
 from pydantic import Field
+
 from schemas import BaseSchema
 from src import PACKAGE_PATH
 
@@ -19,6 +19,14 @@ class Data(BaseSchema):
     """
 
     data_path: str = Field(description="Training data path")
+    batch_data_path: str = Field(description="Batch data path")
+    num_vars: list[str] = Field(description="Numeric variables")
+    cat_vars: list[str] = Field(description="Categorical variables")
+
+    @property
+    def important_columns(self) -> list[str]:
+        """Get important columns."""
+        return self.num_vars + self.cat_vars
 
 
 class DB(BaseSchema):
@@ -70,4 +78,4 @@ class AppConfig(BaseSchema):
 
 config_path: Path = PACKAGE_PATH / "config/config.yaml"
 config: DictConfig = OmegaConf.load(config_path).app_config
-app_config: AppConfig = AppConfig(**config)
+app_config: AppConfig = AppConfig(**config)  # type: ignore
