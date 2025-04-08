@@ -11,6 +11,9 @@
     - [Lint and Type Check](#lint-and-type-check)
       - [Locally](#locally)
       - [CICD](#cicd)
+  - [Deploy Locally (Docker Compose)](#deploy-locally-docker-compose)
+    - [Build Images](#build-images)
+    - [Run Services](#run-services)
 
 ## Introduction
 
@@ -66,4 +69,42 @@ make all
 
 ```sh
 make ci-check
+```
+
+## Deploy Locally (Docker Compose)
+
+### Build Images
+
+```sh
+# Task Worker
+docker buildx build -t rmq-worker:v1 -f Dockerfile.worker .
+
+# Producer
+docker buildx build -t rmq-producer:v1 -f Dockerfile.producer .
+```
+
+### Run Services
+
+```sh
+# Start all services
+docker-compose up
+
+# Build and start all services
+docker-compose up --build
+
+# Start all services in the background
+docker-compose up -d
+
+#  Start a specific service
+docker-compose up -d worker
+
+# Stop a specific service
+docker-compose stop worker
+
+# Start with N replicas
+# NOTE: The container name of the service must be unique and determined by Docker automatically.
+docker-compose up -d --scale worker=N
+
+# Stop all services
+docker-compose down
 ```

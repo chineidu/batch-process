@@ -14,7 +14,7 @@ app_config:
       - embarked
 
   db:
-    database: results.db
+    database: db/results.db
 
   model:
     hyperparams:

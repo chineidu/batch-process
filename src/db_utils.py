@@ -1,8 +1,25 @@
 import sqlite3
+from pathlib import Path
 from typing import Any
 
 from config import app_config
 from schemas import ModelOutput
+
+
+def create_path(path: str | Path) -> None:
+    """
+    Create parent directories for the given path if they don't exist.
+
+    Parameters
+    ----------
+    path : str | Path
+        The file path for which to create parent directories.
+
+    Returns
+    -------
+    None
+    """
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
 
 
 def init_database() -> tuple[sqlite3.Connection, sqlite3.Cursor]:
@@ -14,6 +31,9 @@ def init_database() -> tuple[sqlite3.Connection, sqlite3.Cursor]:
     tuple[sqlite3.Connection, sqlite3.Cursor]
         A tuple containing the database connection and cursor objects.
     """
+    # Create the database file if it doesn't exist
+    create_path(app_config.db.database)
+
     # Connect to the SQLite database (or create it if it doesn't exist)
     conn = sqlite3.connect(app_config.db.database)
 

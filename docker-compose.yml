@@ -11,18 +11,21 @@ services:
       - rabbitmq-data:/var/lib/rabbitmq
 
   worker: # 2nd service
-    image: rmq-workers:v1
+    image: rmq-worker:v1
     build:
       context: ./
       dockerfile: Dockerfile.worker
-    container_name: local-rmq-workers
+    # Remove name to allow Docker to automatically generate a name
+    # when you have more than one replica
+    # container_name: local-rmq-worker
     environment:
       - RABBITMQ_HOST=local-rabbitmq
     env_file:
       - .env
     volumes:
-      - ./data:/app/data  # Bind mount for the data folder
-      - worker-data:/app/data # Add a volume to the worker service
+      - ./db:/app/db  # Bind mount for the data folder
+    deploy:
+      replicas: 1  # Number of replicas
     develop:
     # Create a `watch` configuration to update the app
       watch:
@@ -70,4 +73,3 @@ services:
 # Persist data outside the lifecycle of the container.
 volumes:
   rabbitmq-data:
-  worker-data:
