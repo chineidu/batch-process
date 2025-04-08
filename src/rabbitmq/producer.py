@@ -48,9 +48,9 @@ async def publish_message(message: PersonSchema) -> None:
     await rabbitmq_manager.publish(message)
 
 
-if __name__ == "__main__":
+def main() -> None:
     file_path: Path = PACKAGE_PATH / app_config.data.batch_data_path
-    batch_data: list[dict[str, Any]] = process_batch_data(file_path=file_path)
+    batch_data: list[dict[str, Any]] = process_batch_data(file_path=file_path)[:10]
 
     for data in (
         batch_data := tqdm(
@@ -62,3 +62,7 @@ if __name__ == "__main__":
     ):
         message: PersonSchema = PersonSchema(**data)
         asyncio.run(publish_message(message=message))
+
+
+if __name__ == "__main__":
+    main()

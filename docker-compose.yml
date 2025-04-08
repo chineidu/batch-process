@@ -1,5 +1,5 @@
 services:
-  rabbitmq: # 1st service
+  local-rabbitmq: # 1st service
     image: rabbitmq:4.0-management
     container_name: local-rabbitmq # Also used as hostname
     env_file: # Location of file(s) containing the env vars. Only accessed by the container.
@@ -10,9 +10,36 @@ services:
     volumes: # Persist the data volume
       - rabbitmq-data:/var/lib/rabbitmq
 
+  worker: # 2nd service
+    image: rmq-workers:v1
+    build: 
+      context: ./
+      dockerfile: Dockerfile.worker
+    container_name: local-rmq-workers
+    environment:
+      - RABBITMQ_HOST=local-rabbitmq
+    env_file:
+      - .env
+    volumes:
+      - worker-data:/app/data # Add a volume to the worker service
+    develop:
+    # Create a `watch` configuration to update the app
+      watch:
+        - action: sync
+          path: ./
+          target: /app
+          # Folders and files to ignore
+          ignore:
+            - .venv
+        # Rebuild image if any of these files change
+        - action: rebuild
+          path: ./pyproject.toml
+    depends_on:
+      - local-rabbitmq
 
 
 # Named volumes ONLY!
 # Persist data outside the lifecycle of the container.
 volumes:
   rabbitmq-data:
+  worker-data:

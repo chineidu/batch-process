@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from datetime import datetime
@@ -39,35 +40,58 @@ class RabbitMQManager:
             )
             RabbitMQManager._initialized = True
 
-    async def connect(self) -> bool:
-        try:
-            self.connection = await connect_robust(
-                url=app_settings.rabbitmq_url,
-                client_properties={
-                    "connection_name": f"PythonProducer_{self.process_id}"
-                },
-            )
-            logger.info(
-                f" [+] Process-{self.process_id} Connected to {self.__class__.__name__}"
-            )
-            self.channel = await self.connection.channel()
-            # Prevents RMQ from sending more than one message to a worker at a time.
-            await self.channel.set_qos(prefetch_count=1)
+    async def connect(
+        self, max_attempts: int = 5, initial_delay: int = 1, backoff_factor: float = 2
+    ) -> bool:
+        delay: int = initial_delay
+        attempt: int = 0
 
-            # Declare the exchange
-            self.direct_exchange = await self.channel.declare_exchange(
-                name=app_settings.RABBITMQ_DIRECT_EXCHANGE,
-                type=ExchangeType.DIRECT,
-                durable=True,
-            )
-            logger.info(
-                f" [+] Process-{self.process_id} "
-                f"Declared Exchange: {app_settings.RABBITMQ_DIRECT_EXCHANGE!r}"
-            )
-            return True
-        except Exception as e:
-            logger.error(f" [x] Error connecting to {self.__class__.__name__}: {e}")
-            return False
+        while attempt < max_attempts:
+            try:
+                logger.info(f"Attempting to connect to RabbitMQ at {app_settings.rabbitmq_url}")
+                # Connect to RabbitMQ
+                self.connection = await connect_robust(
+                    url=app_settings.rabbitmq_url,
+                    client_properties={
+                        "connection_name": f"PythonProducer_{self.process_id}"
+                    },
+                    timeout=5,
+                )
+                logger.info(
+                    f" [+] Process-{self.process_id} Connected to {self.__class__.__name__}"
+                )
+
+                # Create channel and set QoS
+                self.channel = await self.connection.channel()
+                # It prevents RMQ from sending more than one message to a consumer at a time.
+                await self.channel.set_qos(prefetch_count=1)
+
+                # Declare the exchange
+                self.direct_exchange = await self.channel.declare_exchange(
+                    name=app_settings.RABBITMQ_DIRECT_EXCHANGE,
+                    type=ExchangeType.DIRECT,
+                    durable=True,
+                )
+                logger.info(
+                    f" [+] Process-{self.process_id} "
+                    f"Declared Exchange: {app_settings.RABBITMQ_DIRECT_EXCHANGE!r}"
+                )
+                return True
+
+            except Exception as e:
+                attempt += 1
+                if attempt >= max_attempts:
+                    logger.error(f" [!] Failed to connect to RabbitMQ: {e}")
+                    return False
+
+                logger.error(
+                    f"Connection attempt {attempt} failed: {e}. Retrying in {delay}s... "
+                )
+                await asyncio.sleep(delay)
+                delay *= backoff_factor
+
+        # This should never be reached if the loop exits properly
+        return False
 
     async def close(self) -> None:
         if self.connection:
