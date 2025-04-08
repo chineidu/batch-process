@@ -12,7 +12,7 @@ services:
 
   worker: # 2nd service
     image: rmq-workers:v1
-    build: 
+    build:
       context: ./
       dockerfile: Dockerfile.worker
     container_name: local-rmq-workers
@@ -21,7 +21,35 @@ services:
     env_file:
       - .env
     volumes:
+      - ./data:/app/data  # Bind mount for the data folder
       - worker-data:/app/data # Add a volume to the worker service
+    develop:
+    # Create a `watch` configuration to update the app
+      watch:
+        - action: sync
+          path: ./
+          target: /app
+          # Folders and files to ignore
+          ignore:
+            - .venv
+        # Rebuild image if any of these files change
+        - action: rebuild
+          path: ./pyproject.toml
+    depends_on:
+      - local-rabbitmq
+
+  producer: # 3rd service
+    image: rmq-producer:v1
+    build:
+      context: ./
+      dockerfile: Dockerfile.producer
+    container_name: local-rmq-producer
+    environment:
+      - RABBITMQ_HOST=local-rabbitmq
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data  # Bind mount for the data folder
     develop:
     # Create a `watch` configuration to update the app
       watch:

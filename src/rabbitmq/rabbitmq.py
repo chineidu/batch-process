@@ -35,26 +35,28 @@ class RabbitMQManager:
             self.channel: AbstractChannel | None = None
             self.direct_exchange: AbstractExchange | None = None
             self.process_id: int = os.getpid()
-            logger.info(
-                f" [+] Initializing {self.__class__.__name__} with PID: {self.process_id}"
-            )
+            logger.info(f" [+] Initializing {self.__class__.__name__} with PID: {self.process_id}")
             RabbitMQManager._initialized = True
 
     async def connect(
-        self, max_attempts: int = 5, initial_delay: int = 1, backoff_factor: float = 2
+        self,
+        max_attempts: int = 5,
+        initial_delay: float = 1.0,
+        backoff_factor: float = 2.0,
     ) -> bool:
-        delay: int = initial_delay
+        delay: float = initial_delay
         attempt: int = 0
 
         while attempt < max_attempts:
             try:
-                logger.info(f"Attempting to connect to RabbitMQ at {app_settings.rabbitmq_url}")
+                logger.info(
+                    f"Attempting to connect to RabbitMQ with host and port: "
+                    f"{app_settings.RABBITMQ_HOST}:{app_settings.RABBITMQ_PORT}"
+                )
                 # Connect to RabbitMQ
                 self.connection = await connect_robust(
                     url=app_settings.rabbitmq_url,
-                    client_properties={
-                        "connection_name": f"PythonProducer_{self.process_id}"
-                    },
+                    client_properties={"connection_name": f"PythonProducer_{self.process_id}"},
                     timeout=5,
                 )
                 logger.info(
@@ -84,9 +86,7 @@ class RabbitMQManager:
                     logger.error(f" [!] Failed to connect to RabbitMQ: {e}")
                     return False
 
-                logger.error(
-                    f"Connection attempt {attempt} failed: {e}. Retrying in {delay}s... "
-                )
+                logger.error(f"Connection attempt {attempt} failed: {e}. Retrying in {delay}s... ")
                 await asyncio.sleep(delay)
                 delay *= backoff_factor
 
@@ -96,9 +96,7 @@ class RabbitMQManager:
     async def close(self) -> None:
         if self.connection:
             await self.connection.close()
-            logger.info(
-                f" [+] Process-{self.process_id} closed {self.__class__.__name__}"
-            )
+            logger.info(f" [+] Process-{self.process_id} closed {self.__class__.__name__}")
 
     async def publish(self, message: PersonSchema) -> bool:
         try:

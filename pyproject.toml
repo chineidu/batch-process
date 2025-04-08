@@ -26,8 +26,6 @@ dev = [
 ]
 
 [tool.mypy]
-plugins = ['pydantic.mypy', 'numpy.typing.mypy_plugin']
-
 mypy_path = ["./"]
 python_version = "3.12"
 show_error_context = true
