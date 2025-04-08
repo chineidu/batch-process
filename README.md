@@ -14,6 +14,7 @@
   - [Deploy Locally (Docker Compose)](#deploy-locally-docker-compose)
     - [Build Images](#build-images)
     - [Run Services](#run-services)
+      - [Configure Docker Compose](#configure-docker-compose)
 
 ## Introduction
 
@@ -108,3 +109,38 @@ docker-compose up -d --scale worker=N
 # Stop all services
 docker-compose down
 ```
+
+#### Configure Docker Compose
+
+- Configure watch in your Docker compose file to mount the project directory without syncing the project virtual environment and to rebuild the image when the configuration changes
+
+```yaml
+services:
+  local-rabbitmq: # 1st service
+    ...
+
+  worker: # 2nd service
+    ...
+    # Create a `watch` configuration to update the app
+      watch:
+        - action: sync
+          path: ./
+          target: /app
+          # Folders and files to ignore
+          ignore:
+            - .venv
+        # Rebuild image if any of these files change
+        - action: rebuild
+          path: ./pyproject.toml
+    ...
+```
+
+- Then, run `docker compose watch` to run the container with the development setup.
+
+```sh
+docker compose watch
+```
+
+- In essence, docker compose watch provides a live development environment where:
+  - the project code is automatically kept in sync between the host machine and the running container, excluding the virtual environment.
+  - The Docker image for the worker service is automatically rebuilt whenever the project's configuration file (`pyproject.toml`) is modified.
