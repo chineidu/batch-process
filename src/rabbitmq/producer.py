@@ -50,7 +50,7 @@ async def publish_message(message: PersonSchema) -> None:
 
 if __name__ == "__main__":
     file_path: Path = PACKAGE_PATH / app_config.data.batch_data_path
-    batch_data: list[dict[str, Any]] = process_batch_data(file_path=file_path)[:10]
+    batch_data: list[dict[str, Any]] = process_batch_data(file_path=file_path)
 
     for data in (
         batch_data := tqdm(

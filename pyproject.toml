@@ -1,4 +1,22 @@
-# Used for pre-commit config
+[project]
+name = "batch-process"
+version = "0.1.0"
+description = "This is used to batch process data"
+requires-python = "==3.12.*"
+authors = [{ name = "Neidu", email = "your.email@example.com" }]
+dependencies = [
+    "aio-pika==9.5.5",
+    "mypy==1.15.0",
+    "nb-black-formatter==1.0.1",
+    "numpy==2.2.4",
+    "pandas==2.2.3",
+    "polars==1.26.0",
+    "pyarrow==19.0.1",
+    "pydantic-settings==2.8.1",
+    "scikit-learn==1.6.1",
+    "tqdm==4.67.1",
+]
+
 [tool.mypy]
 plugins = ['pydantic.mypy', 'numpy.typing.mypy_plugin']
 
@@ -14,9 +32,7 @@ warn_unused_configs = true
 pretty = true
 
 [[tool.mypy.overrides]]
-module = [
-    "numpy.typing",
-]
+module = ["numpy.typing"]
 ignore_missing_imports = true
 
 [tool.ruff]
@@ -31,21 +47,61 @@ target-version = "py312"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
-    ".bzr", ".direnv", ".dockerignore", ".eggs", ".env", ".git",
-    ".gitignore", ".git-rewrite",  ".hg", ".mypy_cache", ".nox",
-    ".pants.d", ".pytype", ".ruff_cache", ".svn", ".tox", ".venv",
-    "__pypackages__", "_build", "buck-out", "build", "dist", "env",
-    "node_modules", "venv",
+    ".bzr",
+    ".direnv",
+    ".dockerignore",
+    ".eggs",
+    ".env",
+    ".git",
+    ".gitignore",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "env",
+    "node_modules",
+    "venv",
 ]
 
 [tool.ruff.lint]
 # Add the `line-too-long` rule to the enforced rule set.
 extend-select = ["E501"]
 select = [
-    "I001", "ANN201", "ANN202", "S107", "PIE796", "T201", "PYI009",
-    "PYI012", "PYI026", "RET505", "SIM115", "F401",
-    ]
-ignore = ["E741", "PT011", "PLR1722", "D419", "D101", "D100", "D107", "ANN401", "PLC0414"]
+    "I001",
+    "ANN201",
+    "ANN202",
+    "S107",
+    "PIE796",
+    "T201",
+    "PYI009",
+    "PYI012",
+    "PYI026",
+    "RET505",
+    "SIM115",
+    "F401",
+]
+ignore = [
+    "E741",
+    "PT011",
+    "PLR1722",
+    "D419",
+    "D101",
+    "D100",
+    "D107",
+    "ANN401",
+    "PLC0414",
+]
 
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
@@ -63,5 +119,12 @@ skip-magic-trailing-comma = false
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
 
+[dependency-groups]
+dev = [
+    "jupyter==1.1.1",
+    "pre-commit>=4.2.0",
+    "ruff==0.11.4",
+]
+
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+"__init__.py" = ["F401"] # Allow unused imports in __init__.py

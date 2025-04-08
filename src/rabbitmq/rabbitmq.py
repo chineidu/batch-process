@@ -12,7 +12,7 @@ from config import app_settings
 from schemas import PersonSchema
 from src import create_logger
 
-logger = create_logger(name=__name__)
+logger = create_logger(name="RMQ_manager")
 
 ConnectionCoroutine = Coroutine[Any, Any, AbstractRobustConnection]
 
@@ -34,16 +34,22 @@ class RabbitMQManager:
             self.channel: AbstractChannel | None = None
             self.direct_exchange: AbstractExchange | None = None
             self.process_id: int = os.getpid()
-            logger.info(f" [+] Initializing {self.__class__.__name__} with PID: {self.process_id}")
+            logger.info(
+                f" [+] Initializing {self.__class__.__name__} with PID: {self.process_id}"
+            )
             RabbitMQManager._initialized = True
 
     async def connect(self) -> bool:
         try:
             self.connection = await connect_robust(
                 url=app_settings.rabbitmq_url,
-                client_properties={"connection_name": f"PythonProducer_{self.process_id}"},
+                client_properties={
+                    "connection_name": f"PythonProducer_{self.process_id}"
+                },
             )
-            logger.info(f" [+] Process-{self.process_id} Connected to {self.__class__.__name__}")
+            logger.info(
+                f" [+] Process-{self.process_id} Connected to {self.__class__.__name__}"
+            )
             self.channel = await self.connection.channel()
             # Prevents RMQ from sending more than one message to a worker at a time.
             await self.channel.set_qos(prefetch_count=1)
@@ -66,7 +72,9 @@ class RabbitMQManager:
     async def close(self) -> None:
         if self.connection:
             await self.connection.close()
-            logger.info(f" [+] Process-{self.process_id} closed {self.__class__.__name__}")
+            logger.info(
+                f" [+] Process-{self.process_id} closed {self.__class__.__name__}"
+            )
 
     async def publish(self, message: PersonSchema) -> bool:
         try:
