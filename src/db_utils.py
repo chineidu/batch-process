@@ -24,7 +24,14 @@ def create_path(path: str | Path) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
 
 
-def init_database() -> tuple[sqlite3.Connection, sqlite3.Cursor]:
+def parse_data(data: str) -> dict[str, Any]:
+    """
+    Parse data from a dictionary and return a tuple of values.
+    """
+    return ModelOutput.model_validate_json(data).model_dump(by_alias=True)
+
+
+def init_database_sync() -> tuple[sqlite3.Connection, sqlite3.Cursor]:
     """
     Initialize SQLite database connection and create users table.
 
@@ -59,11 +66,39 @@ def init_database() -> tuple[sqlite3.Connection, sqlite3.Cursor]:
     return conn, cursor
 
 
-def parse_data(data: str) -> dict[str, Any]:
+async def init_database_async() -> aiosqlite.Connection:
     """
-    Parse data from a dictionary and return a tuple of values.
+    Initialize SQLite database connection and create users table asynchronously.
+
+    Returns
+    -------
+    aiosqlite.Connection
+        The database connection object.
     """
-    return ModelOutput.model_validate_json(data).model_dump(by_alias=True)
+    # Create the database file if it doesn't exist
+    create_path(app_config.db.database)
+
+    # Connect to the SQLite database (or create it if it doesn't exist)
+    conn = await aiosqlite.connect(app_config.db.database)
+
+    # Create a table
+    await conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS predictions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            status TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            survived INTEGER,
+            probability REAL
+        )
+    """
+    )
+
+    # Commit the changes
+    await conn.commit()
+
+    return conn
 
 
 def insert_data_sync(conn: sqlite3.Connection, *, cursor: sqlite3.Cursor, data: str) -> None:
@@ -132,21 +167,35 @@ async def _insert_data_async(conn: aiosqlite.Connection, data: str) -> None:
     await conn.commit()
 
 
-async def insert_data_async(data: str) -> None:
+async def insert_data_async(conn: aiosqlite.Connection, data: str, logger) -> None:
     """
-    Insert data asynchronously into the predictions table using a database connection.
+    Insert data asynchronously into a table using a database connection.
 
     Parameters
     ----------
+    conn : aiosqlite.Connection
+        Asynchronous SQLite database connection object
     data : str
         JSON string containing prediction data
+    logger : logging.Logger
+        Logger instance for error reporting
 
     Returns
     -------
     None
-    """
-    # Create the database file if it doesn't exist
-    create_path(app_config.db.database)
 
-    async with aiosqlite.connect(app_config.db.database) as conn:
+    Raises
+    ------
+    aiosqlite.Error
+        If a database-related error occurs during insertion
+    Exception
+        If any other unexpected error occurs
+    """
+    try:
         await _insert_data_async(conn, data=data)
+    except aiosqlite.Error as e:
+        logger.error(f"Database error when inserting data: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error when inserting data: {e}")
+        raise

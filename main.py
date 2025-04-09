@@ -4,11 +4,12 @@ from pathlib import Path
 from pprint import pprint
 from typing import Any
 
+import aiosqlite
 import joblib
 
 from schemas import ModelOutput, PersonSchema
 from src import PACKAGE_PATH, create_logger
-from src.db_utils import insert_data_async
+from src.db_utils import init_database_async, insert_data_async
 from src.ml.utils import get_prediction
 from src.rabbitmq import rabbitmq_manager
 
@@ -20,6 +21,8 @@ async def main() -> None:
     with open(model_dict_fp, "rb") as f:
         model_dict = joblib.load(f)
 
+    conn: aiosqlite.Connection = await init_database_async()
+
     async def prediction_callback(
         message: dict[str, Any], model_dict: dict[str, Any] = model_dict
     ) -> None:
@@ -30,7 +33,7 @@ async def main() -> None:
             model_dict,  # type: ignore
         )
         result_dict: str = result.model_dump_json(by_alias=True)
-        await insert_data_async(data=result_dict)
+        await insert_data_async(conn=conn, data=result_dict, logger=logger)
         logger.info(f"Inserted data with id {record.id!r} into database.")
         return None
 
