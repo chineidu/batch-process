@@ -9,12 +9,18 @@ services:
       - 15672:15672
     volumes: # Persist the data volume
       - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   worker: # 2nd service
     image: chineidu/rmq-worker:v1
     build:
       context: ./
       dockerfile: Dockerfile.worker
+
     # Remove name to allow Docker to automatically generate a name
     # when you have more than one replica
     # container_name: local-rmq-worker
@@ -25,7 +31,9 @@ services:
     volumes:
       - ./db:/app/db  # Bind mount for the data folder
     deploy:
-      replicas: 3  # Number of replicas
+      replicas: 2  # Number of replicas
+    # CPU limits (0.5 = 50% of one core)
+    cpus: "0.5"
     develop:
     # Create a `watch` configuration to update the app
       watch:
@@ -39,7 +47,8 @@ services:
         - action: rebuild
           path: ./pyproject.toml
     depends_on:
-      - local-rabbitmq
+      local-rabbitmq:
+        condition: service_healthy
 
   producer: # 3rd service
     image: chineidu/rmq-producer:v1
@@ -53,6 +62,7 @@ services:
       - .env
     volumes:
       - ./data:/app/data  # Bind mount for the data folder
+    cpus: "0.5"
     develop:
     # Create a `watch` configuration to update the app
       watch:
@@ -66,7 +76,8 @@ services:
         - action: rebuild
           path: ./pyproject.toml
     depends_on:
-      - local-rabbitmq
+      local-rabbitmq:
+        condition: service_healthy
 
 
 # Named volumes ONLY!

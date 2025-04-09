@@ -1,4 +1,7 @@
-.PHONY: help type-check format lint lint-fix check all clean format-fix ci-check lint-verbose
+.PHONY: help type-check format lint lint-fix \
+	check all clean format-fix ci-check \
+	compose-build compose-watch \
+	compose-up compose-down lint-verbose
 
 # Use bash with strict error handling
 .SHELLFLAGS := -ec
@@ -10,17 +13,21 @@ help:
 	@echo "Ruff Formatting and Linting Makefile"
 	@echo ""
 	@echo "Usage:"
-	@echo "  make type-check    Run type checking with MyPy"
-	@echo "  make format        Format code using Ruff"
-	@echo "  make lint          Run Ruff linter without fixing issues"
-	@echo "  make lint-fix      Run Ruff linter and fix issues automatically"
-	@echo "  make lint-verbose  Run Ruff linter with verbose output"
-	@echo "  make format-fix    Format code and fix linting issues (one command)"
-	@echo "  make check         Run both formatter and linter without fixing"
-	@echo "  make ci-check      Run all checks for CI (type checking, formatting, linting)"
-	@echo "  make all           Same as format-fix (default)"
-	@echo "  make clean         Clean all cache files"
-	@echo "  make help          Show this help message"
+	@echo "  make type-check       Run type checking with MyPy"
+	@echo "  make format           Format code using Ruff"
+	@echo "  make lint             Run Ruff linter without fixing issues"
+	@echo "  make lint-fix         Run Ruff linter and fix issues automatically"
+	@echo "  make lint-verbose     Run Ruff linter with verbose output"
+	@echo "  make format-fix       Format code and fix linting issues (one command)"
+	@echo "  make check            Run both formatter and linter without fixing"
+	@echo "  make ci-check         Run all checks for CI (type checking, formatting, linting)"
+	@echo "  make compose-build    Build Docker Compose development environment"
+	@echo "  make compose-watch    Watch for changes and rebuild Docker Compose development environment"
+	@echo "  make compose-up       Start Docker Compose development environment"
+	@echo "  make compose-down     Stop Docker Compose development environment"
+	@echo "  make all              Same as format-fix (default)"
+	@echo "  make clean            Clean all cache files"
+	@echo "  make help             Show this help message"
 
 # Type checking with MyPy
 type-check:
@@ -59,6 +66,27 @@ check:
 
 # Complete CI check with type checking
 ci-check: type-check check
+
+# Docker Compose commands
+compose-up:
+	@echo "Starting Docker Compose development environment..."
+	docker compose up -d
+	@echo "Docker Compose development environment started."
+
+compose-build:
+	@echo "Starting Docker Compose development with build environment..."
+	docker compose up --build -d
+	@echo "Docker Compose development environment started."
+
+compose-watch:
+	@echo "Watch for changes and rebuild Docker Compose development environment..."
+	docker compose watch
+	@echo "Docker Compose development environment started."
+compose-down:
+	@echo "Stopping Docker Compose development environment..."
+	docker compose down
+	docker image prune -f
+	@echo "Docker Compose development environment stopped."
 
 # Clean cache files
 clean:

@@ -9,7 +9,7 @@ import joblib
 
 from schemas import ModelOutput, PersonSchema
 from src import PACKAGE_PATH, create_logger
-from src.db_utils import init_database_async, insert_data_async
+from src.db_utils import init_database_async, insert_data_async, insert_dlq_data_async
 from src.ml.utils import get_prediction
 from src.rabbitmq import rabbitmq_manager
 
@@ -37,8 +37,17 @@ async def main() -> None:
         logger.info(f"Inserted data with id {record.id!r} into database.")
         return None
 
+    async def dlq_callback(
+        message: dict[str, Any], model_dict: dict[str, Any] = model_dict
+    ) -> None:
+        record: PersonSchema = PersonSchema(**message)
+        await insert_dlq_data_async(conn=conn, data=record.model_dump_json(), logger=logger)
+        logger.info(f"Inserted DLQ data with id {record.id!r} into database.")
+        return None
+
     await rabbitmq_manager.connect()
     await rabbitmq_manager.consume(callback=prediction_callback)  # type: ignore
+    await rabbitmq_manager.consume_dlq(callback=dlq_callback)  # type: ignore
     await asyncio.Future()  # run forever
 
     # Close connection

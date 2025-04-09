@@ -62,6 +62,7 @@ def init_database_sync() -> tuple[sqlite3.Connection, sqlite3.Cursor]:
         )
     """
     )
+    conn.commit()
 
     return conn, cursor
 
@@ -91,6 +92,23 @@ async def init_database_async() -> aiosqlite.Connection:
             user_id TEXT NOT NULL,
             survived INTEGER,
             probability REAL
+        )
+    """
+    )
+
+    await conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS failed_predictions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            person_id TEXT NOT NULL,
+            sex TEXT,
+            age INTEGER,
+            pclass INTEGER,
+            sibsp INTEGER,
+            parch INTEGER,
+            fare REAL,
+            embarked TEXT,
+            survived INTEGER
         )
     """
     )
@@ -193,6 +211,25 @@ async def insert_data_async(conn: aiosqlite.Connection, data: str, logger) -> No
     """
     try:
         await _insert_data_async(conn, data=data)
+    except aiosqlite.Error as e:
+        logger.error(f"Database error when inserting data: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error when inserting data: {e}")
+        raise
+
+
+async def insert_dlq_data_async(conn: aiosqlite.Connection, data: str, logger) -> None:
+    """
+    Insert data asynchronously into a table using a database connection.
+    """
+    query: str = """
+        INSERT INTO failed_predictions (person_id, sex, age, pclass, sibsp,
+        parch, fare, embarked, survived)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
+    try:
+        conn.execute(query, data)
     except aiosqlite.Error as e:
         logger.error(f"Database error when inserting data: {e}")
         raise

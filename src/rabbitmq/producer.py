@@ -40,6 +40,8 @@ def process_batch_data(file_path: str | Path) -> list[dict[str, Any]]:
 
 
 async def publish_messages() -> None:
+    # Sleep for 10 seconds to allow RabbitMQ to start
+    await asyncio.sleep(10)
     await rabbitmq_manager.connect()
     file_path: Path = PACKAGE_PATH / app_config.data.batch_data_path
     batch_data: list[dict[str, Any]] = process_batch_data(file_path=file_path)

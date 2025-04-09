@@ -68,12 +68,27 @@ class RabbitMQManager:
                 # It prevents RMQ from sending more than one message to a consumer at a time.
                 await self.channel.set_qos(prefetch_count=1)
 
+                # Declare the exchange and queue for dead letter
+                self.dl_exchange = await self.channel.declare_exchange(
+                    name=f"{app_settings.RABBITMQ_DIRECT_EXCHANGE}.dlx",
+                    type=ExchangeType.DIRECT,
+                    durable=True,
+                )
+                self.dl_queue = await self.channel.declare_queue(
+                    name=f"{app_settings.RABBITMQ_DIRECT_EXCHANGE}.dlq",
+                    durable=True,
+                )
+                # Bind the queue to the exchange
+                await self.dl_queue.bind(
+                    self.dl_exchange, routing_key=app_settings.RABBITMQ_DIRECT_EXCHANGE
+                )
                 # Declare the exchange
                 self.direct_exchange = await self.channel.declare_exchange(
                     name=app_settings.RABBITMQ_DIRECT_EXCHANGE,
                     type=ExchangeType.DIRECT,
                     durable=True,
                 )
+
                 logger.info(
                     f" [+] Process-{self.process_id} "
                     f"Declared Exchange: {app_settings.RABBITMQ_DIRECT_EXCHANGE!r}"
@@ -125,8 +140,14 @@ class RabbitMQManager:
         self, callback: Callable[[IncomingMessage], Coroutine[Any, Any, None]]
     ) -> bool:
         async def on_message_callback(message: IncomingMessage) -> None:
-            """Callback function to handle incoming messages."""
-            async with message.process():  # type: ignore
+            """Callback function to handle incoming messages.
+
+            with requueue=False, the message is not requeued but is routed to
+            the dead letter exchange.
+            """
+            async with message.process(requeue=False):  # type: ignore
+                # Msg will be ACKed if the callback function does not raise an exception.
+                # If the callback raises an exception, it be be routed to the DL exchange
                 message_data: dict[str, Any] = json.loads(message.body.decode("utf-8"))  # type: ignore
                 await callback(message_data)  # type: ignore
 
@@ -134,6 +155,10 @@ class RabbitMQManager:
             queue = await self.channel.declare_queue(  # type: ignore
                 name=app_settings.RABBITMQ_DIRECT_EXCHANGE,
                 durable=True,
+                arguments={
+                    "x-dead-letter-exchange": f"{app_settings.RABBITMQ_DIRECT_EXCHANGE}.dlx",
+                    "x-dead-letter-routing-key": app_settings.RABBITMQ_DIRECT_EXCHANGE,
+                },
             )
             await queue.bind(
                 self.direct_exchange,  # type: ignore
@@ -147,6 +172,29 @@ class RabbitMQManager:
             return True
         except Exception as e:
             logger.error(f" [x] Error consuming messages: {e}")
+            return False
+
+    async def consume_dlq(
+        self, callback: Callable[[IncomingMessage], Coroutine[Any, Any, None]]
+    ) -> bool:
+        async def on_dlq_message_callback(message: IncomingMessage) -> None:
+            try:
+                async with message.process():  # type: ignore
+                    message_data: dict[str, Any] = json.loads(message.body.decode("utf-8"))  # type: ignore
+                    await callback(message_data)  # type: ignore
+            except Exception as e:
+                logger.error(f" [x] Error processing DLQ message: {e}")
+                await message.nack(requeue=True)
+
+        try:
+            await self.dl_queue.consume(on_dlq_message_callback)  # type: ignore
+            logger.info(
+                f" [+] Process-{self.process_id} Consuming DLQ messages "
+                f"from {app_settings.RABBITMQ_DIRECT_EXCHANGE}.dlq"
+            )
+            return True
+        except Exception as e:
+            logger.error(f" [x] Error consuming DLQ messages: {e}")
             return False
 
 
