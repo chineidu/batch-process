@@ -104,9 +104,7 @@ async def main() -> None:
             logger.info(f"All messages processed. Total messages: {processed_messages}")
         return None
 
-    async def dlq_callback(
-        message: dict[str, Any], model_dict: dict[str, Any] = model_dict
-    ) -> None:
+    async def dlq_callback(message: dict[str, Any]) -> None:
         """
         Process messages from the dead letter queue.
 
@@ -114,9 +112,6 @@ async def main() -> None:
         ----------
         message : dict[str, Any]
             The message from DLQ to process
-        model_dict : dict[str, Any]
-            The loaded model dictionary (unused in DLQ processing)
-
         Returns
         -------
         None

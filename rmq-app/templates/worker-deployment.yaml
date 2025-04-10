@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-worker
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-worker
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-worker
+    spec:
+      containers:
+      - name: worker
+        image: {{ .Values.worker.image }}
+        resources:
+          limits:
+            cpu: {{ .Values.worker.resources.limits.cpu }}
+            memory: {{ .Values.worker.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.worker.resources.requests.cpu }}
+            memory: {{ .Values.worker.resources.requests.memory }}
+        env:
+        - name: RABBITMQ_HOST
+          value: {{ .Release.Name }}-rabbitmq
+        envFrom:
+        - configMapRef:
+            name: {{ .Release.Name }}-config
+        volumeMounts:
+        - name: db-volume
+          mountPath: /app/db
+      volumes:
+      - name: db-volume
+        emptyDir: {}  # For dev purposes; use PVC for production

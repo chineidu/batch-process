@@ -1,0 +1,54 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-rabbitmq
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-rabbitmq
+    spec:
+      containers:
+      - name: {{ .Values.rabbitmq.containerName }}
+        image: {{ .Values.rabbitmq.image }}
+        ports:
+        {{- range .Values.rabbitmq.ports }}
+        - containerPort: {{ .targetPort }}
+          name: {{ .name }}
+        {{- end }}
+        resources:
+          limits:
+            cpu: {{ .Values.rabbitmq.resources.limits.cpu }}
+            memory: {{ .Values.rabbitmq.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.rabbitmq.resources.requests.cpu }}
+            memory: {{ .Values.rabbitmq.resources.requests.memory }}
+        envFrom:
+        - configMapRef:
+            name: {{ .Release.Name }}-config
+        volumeMounts:
+        - name: rabbitmq-data
+          mountPath: /var/lib/rabbitmq
+        livenessProbe:
+          exec:
+            command: ["rabbitmq-diagnostics", "check_port_connectivity"]
+          initialDelaySeconds: {{ .Values.rabbitmq.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.rabbitmq.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.rabbitmq.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.rabbitmq.healthcheck.failureThreshold }}
+        readinessProbe:
+          exec:
+            command: ["rabbitmq-diagnostics", "check_port_connectivity"]
+          initialDelaySeconds: {{ .Values.rabbitmq.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.rabbitmq.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.rabbitmq.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.rabbitmq.healthcheck.failureThreshold }}
+      volumes:
+      - name: rabbitmq-data
+        persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-rabbitmq-data
