@@ -1,11 +1,38 @@
 import sqlite3
+import time
+from functools import wraps
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import aiosqlite
 
 from config import app_config
 from schemas import ModelOutput
+
+
+def async_timer(func: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    A decorator that measures and prints the execution time of an async function.
+
+    Parameters
+    ----------
+    func : Callable
+        The async function to be timed.
+
+    Returns
+    -------
+    Callable
+        A wrapped async function that prints execution time.
+    """
+
+    @wraps(func)
+    async def wrapper(*args, **kwargs) -> Any:
+        start_time: float = time.perf_counter()
+        result = await func(*args, **kwargs)
+        duration: float = time.perf_counter() - start_time
+        return result
+
+    return wrapper
 
 
 def create_path(path: str | Path) -> None:
@@ -59,6 +86,22 @@ def init_database_sync() -> tuple[sqlite3.Connection, sqlite3.Cursor]:
             user_id TEXT NOT NULL,
             survived INTEGER,
             probability REAL
+        )
+    """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS failed_predictions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            person_id TEXT NOT NULL,
+            sex TEXT,
+            age INTEGER,
+            pclass INTEGER,
+            sibsp INTEGER,
+            parch INTEGER,
+            fare REAL,
+            embarked TEXT,
+            survived INTEGER
         )
     """
     )
