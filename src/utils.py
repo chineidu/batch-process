@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import sqlite3
 import time
 from functools import wraps
@@ -5,6 +7,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import aiosqlite
+import requests  # type: ignore
 
 from config import app_config
 from schemas import ModelOutput
@@ -26,7 +29,7 @@ def async_timer(func: Callable[..., Any]) -> Callable[..., Any]:
     """
 
     @wraps(func)
-    async def wrapper(*args, **kwargs) -> Any:
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
         start_time: float = time.perf_counter()
         result = await func(*args, **kwargs)
         duration: float = time.perf_counter() - start_time
@@ -228,7 +231,7 @@ async def _insert_data_async(conn: aiosqlite.Connection, data: str) -> None:
     await conn.commit()
 
 
-async def insert_data_async(conn: aiosqlite.Connection, data: str, logger) -> None:
+async def insert_data_async(conn: aiosqlite.Connection, data: str, logger: logging.Logger) -> None:
     """
     Insert data asynchronously into a table using a database connection.
 
@@ -262,7 +265,9 @@ async def insert_data_async(conn: aiosqlite.Connection, data: str, logger) -> No
         raise
 
 
-async def insert_dlq_data_async(conn: aiosqlite.Connection, data: str, logger) -> None:
+async def insert_dlq_data_async(
+    conn: aiosqlite.Connection, data: str, logger: logging.Logger
+) -> None:
     """
     Insert data asynchronously into a table using a database connection.
     """
@@ -279,3 +284,18 @@ async def insert_dlq_data_async(conn: aiosqlite.Connection, data: str, logger) -
     except Exception as e:
         logger.error(f"Unexpected error when inserting data: {e}")
         raise
+
+
+def download_file_from_gdrive(file_id: str, destination: str) -> None:
+    download_url: str = f"https://drive.google.com//uc?export=download&id={file_id}"
+    response = requests.get(download_url, stream=True)
+    # Raise an exception for bad status codes
+    response.raise_for_status()
+
+    with open(destination, "wb") as file:
+        for chunk in response.iter_content(chunk_size=8192):
+            file.write(chunk)
+
+
+async def download_file_from_gdrive_async(file_id: str, destination: str) -> None:
+    return await asyncio.to_thread(download_file_from_gdrive, file_id, destination)

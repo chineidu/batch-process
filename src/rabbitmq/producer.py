@@ -52,7 +52,7 @@ async def publish_messages() -> None:
             desc="Processing batch data",
             unit="batch",
             total=len(batch_data),
-        )
+        )  # type: ignore
     ):
         message: PersonSchema = PersonSchema(**data)
 
