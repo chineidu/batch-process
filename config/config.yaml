@@ -1,7 +1,10 @@
 app_config:
   data:
     data_path: data/train.parquet
-    batch_data_path: data/test.parquet
+    batch_data:
+      is_remote: true
+      remote_data_id: 1lSKBgYQ6bgV4ARRpeRfPMpLgf1GgyWY8
+      download_path: data/downloaded_data.parquet
     num_vars:
       - age
       - pclass

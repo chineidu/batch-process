@@ -4,6 +4,7 @@ import sqlite3
 import time
 from functools import wraps
 from pathlib import Path
+from pprint import pprint
 from typing import Any, Callable
 
 import aiosqlite
@@ -33,6 +34,7 @@ def async_timer(func: Callable[..., Any]) -> Callable[..., Any]:
         start_time: float = time.perf_counter()
         result = await func(*args, **kwargs)
         duration: float = time.perf_counter() - start_time
+        pprint(f"{func.__name__} executed in {duration:.2f} seconds")
         return result
 
     return wrapper
@@ -286,7 +288,7 @@ async def insert_dlq_data_async(
         raise
 
 
-def download_file_from_gdrive(file_id: str, destination: str) -> None:
+def download_file_from_gdrive(file_id: str | Path, destination: str | Path) -> None:
     download_url: str = f"https://drive.google.com//uc?export=download&id={file_id}"
     response = requests.get(download_url, stream=True)
     # Raise an exception for bad status codes
@@ -297,5 +299,5 @@ def download_file_from_gdrive(file_id: str, destination: str) -> None:
             file.write(chunk)
 
 
-async def download_file_from_gdrive_async(file_id: str, destination: str) -> None:
+async def download_file_from_gdrive_async(file_id: str | Path, destination: str | Path) -> None:
     return await asyncio.to_thread(download_file_from_gdrive, file_id, destination)

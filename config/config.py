@@ -19,7 +19,7 @@ class Data(BaseSchema):
     """
 
     data_path: str = Field(description="Training data path")
-    batch_data_path: str = Field(description="Batch data path")
+    batch_data: BatchData = Field(description="Batch data configuration")
     num_vars: list[str] = Field(description="Numeric variables")
     cat_vars: list[str] = Field(description="Categorical variables")
 
@@ -56,6 +56,14 @@ class ModelHyperparams(BaseSchema):
     max_depth: int = Field(description="Maximum depth")
     random_state: int = Field(description="Random state")
     test_size: float = Field(description="Test size")
+
+
+class BatchData(BaseSchema):
+    """Batch data configuration class."""
+
+    is_remote: bool = Field(description="Whether the data is remote")
+    remote_data_id: str = Field(description="Remote data id")
+    download_path: str = Field(description="Download path")
 
 
 class AppConfig(BaseSchema):
