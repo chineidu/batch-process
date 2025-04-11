@@ -61,13 +61,7 @@ async def process_batch_data(file_path: str | Path, is_remote: bool = True) -> l
     return test_data.collect().to_dicts()
 
 
-async def publish_messages() -> None:
-    """Publish messages to RabbitMQ from batch data.
-
-    Returns
-    -------
-    None
-    """
+async def _get_batch_data() -> list[dict[str, Any]]:
     # Sleep for 5 seconds to allow RabbitMQ to start
     await asyncio.sleep(5)
     await rabbitmq_manager.connect()
@@ -75,6 +69,39 @@ async def publish_messages() -> None:
     batch_data: list[dict[str, Any]] = await process_batch_data(
         file_path=file_path, is_remote=app_config.data.batch_data.is_remote
     )
+    return batch_data
+
+
+async def publish_messages() -> None:
+    """Publish messages to RabbitMQ from batch data.
+
+    Returns
+    -------
+    None
+    """
+    batch_data: list[dict[str, Any]] = await _get_batch_data()
+
+    for data in (
+        batch_data := tqdm(
+            batch_data,
+            desc="Processing batch data",
+            unit="batch",
+            total=len(batch_data),
+        )  # type: ignore
+    ):
+        message: PersonSchema = PersonSchema(**data)
+
+        await rabbitmq_manager.publish(message)
+
+
+async def batch_publish_messages() -> None:
+    """Publish messages to RabbitMQ from batch data.
+
+    Returns
+    -------
+    None
+    """
+    batch_data: list[dict[str, Any]] = await _get_batch_data()
 
     for data in (
         batch_data := tqdm(

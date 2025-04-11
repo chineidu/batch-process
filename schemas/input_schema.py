@@ -1,4 +1,4 @@
-# type: ignore
+from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
@@ -41,3 +41,10 @@ class PersonSchema(BaseSchema):
     fare: Float = Field(description="Fare paid for the ticket.")
     embarked: Literal["s", "c", "q"] = Field(description="Port of embarkation.")
     survived: int = Field(default=0, description="Survival status of the passenger.")
+    timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the entry.")
+
+
+class MultiPersonsSchema(BaseSchema):
+    """Schema for multiple people."""
+
+    persons: list[PersonSchema] = Field(description="List of people.")

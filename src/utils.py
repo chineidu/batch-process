@@ -157,6 +157,7 @@ async def init_database_async() -> aiosqlite.Connection:
             fare REAL,
             embarked TEXT,
             survived INTEGER
+            timestamp TEXT NOT NULL
         )
     """
     )

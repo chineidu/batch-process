@@ -24,3 +24,11 @@ class ModelOutput(BaseSchema):
         default_factory=datetime.now, description="Timestamp of the response."
     )
     data: PredOutput | None = Field(default=None, description="Prediction output.")
+
+
+class MultiPredOutput(BaseSchema):
+    """Schema for the output of the model."""
+
+    outputs: list[ModelOutput] = Field(  # type: ignore
+        default_factory=list, description="List of prediction outputs."
+    )

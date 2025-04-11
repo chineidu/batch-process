@@ -10,7 +10,7 @@ from aio_pika import ExchangeType, IncomingMessage, Message, connect_robust
 from aio_pika.abc import AbstractChannel, AbstractExchange, AbstractRobustConnection
 
 from config import app_settings
-from schemas import PersonSchema
+from schemas import MultiPersonsSchema, PersonSchema
 from src import create_logger
 
 logger = create_logger(name="RMQ_manager")
@@ -114,6 +114,29 @@ class RabbitMQManager:
             logger.info(f" [+] Process-{self.process_id} closed {self.__class__.__name__}")
 
     async def publish(self, message: PersonSchema) -> bool:
+        try:
+            message_data: bytes = message.model_dump_json(by_alias=True).encode("utf-8")
+            rmq_message: Message = Message(
+                body=message_data,
+                content_type="application/json",
+                content_encoding="utf-8",
+                expiration=app_settings.RABBITMQ_EXPIRATION_MS,
+                timestamp=datetime.now(),
+            )
+            await self.direct_exchange.publish(  # type: ignore
+                message=rmq_message,
+                routing_key=app_settings.RABBITMQ_DIRECT_EXCHANGE,
+            )
+            logger.info(
+                f" [+] Process-{self.process_id} Published message "
+                f"to {app_settings.RABBITMQ_DIRECT_EXCHANGE}"
+            )
+            return True
+        except Exception as e:
+            logger.error(f" [x] Error publishing message: {e}")
+            return False
+
+    async def batch_publish(self, message: MultiPersonsSchema) -> bool:
         try:
             message_data: bytes = message.model_dump_json(by_alias=True).encode("utf-8")
             rmq_message: Message = Message(
