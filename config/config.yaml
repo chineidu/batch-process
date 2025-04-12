@@ -6,7 +6,7 @@ app_config:
       remote_data_id: 1lSKBgYQ6bgV4ARRpeRfPMpLgf1GgyWY8
       download_path: data/downloaded_data.parquet
       batch_mode: true
-      batch_size: 10
+      batch_size: 100
     num_vars:
       - age
       - pclass

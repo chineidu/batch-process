@@ -28,7 +28,7 @@ rabbitmq:
 
 worker:
   image: chineidu/rmq-worker:v1
-  replicas: 3
+  replicas: 2
   resources:
     limits:
       cpu: 500m
