@@ -14,6 +14,17 @@ from src import create_logger
 
 logger = create_logger(name="db_utils")
 
+# Queries
+QUERY: str = """
+        INSERT INTO predictions (status, timestamp, user_id, survived, probability)
+        VALUES (?, ?, ?, ?, ?)
+    """
+DLQ_QUERY: str = """
+        INSERT INTO failed_predictions (person_id, sex, age, pclass,
+        sibsp, parch, fare, embarked, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
+
 
 def create_path(path: str | Path) -> None:
     """
@@ -375,10 +386,6 @@ def insert_data_sync(conn: sqlite3.Connection, *, cursor: sqlite3.Cursor, data: 
 
     """
     parsed_data: dict[str, Any] = parse_data(data)
-    query: str = """
-        INSERT INTO predictions (status, timestamp, user_id, survived, probability)
-        VALUES (?, ?, ?, ?, ?)
-    """
     record: tuple[str, ...] = (
         parsed_data["status"],
         parsed_data["timestamp"],
@@ -387,7 +394,7 @@ def insert_data_sync(conn: sqlite3.Connection, *, cursor: sqlite3.Cursor, data: 
         parsed_data["data"]["probability"],
     )
 
-    cursor.execute(query, record)
+    cursor.execute(QUERY, record)
     conn.commit()
 
 
@@ -404,10 +411,6 @@ async def _insert_data_async(conn: aiosqlite.Connection, data: str | ModelOutput
 
     """
     parsed_data: dict[str, Any] = parse_data(data)
-    query: str = """
-        INSERT INTO predictions (status, timestamp, user_id, survived, probability)
-        VALUES (?, ?, ?, ?, ?)
-    """
     record: tuple[str, ...] = (
         parsed_data["status"],
         parsed_data["timestamp"],
@@ -416,7 +419,7 @@ async def _insert_data_async(conn: aiosqlite.Connection, data: str | ModelOutput
         parsed_data["data"]["probability"],
     )
 
-    await conn.execute(query, record)
+    await conn.execute(QUERY, record)
     await conn.commit()
 
 
@@ -474,15 +477,11 @@ async def insert_dlq_data_async(
         aiosqlite.Error: If there's an error connecting to the database
         Exception: If any other unexpected error occurs
     """
-    query: str = """
-        INSERT INTO failed_predictions (person_id, sex, age, pclass,
-        sibsp, parch, fare, embarked)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """
+
     try:
         async with pool.connection() as conn:
             async with transaction(conn):
-                await conn.execute(query, data)
+                await conn.execute(DLQ_QUERY, data)
     except aiosqlite.Error as e:
         logger.error(f"Database error when inserting data: {e}")
         raise
@@ -508,11 +507,6 @@ async def insert_batch_dlq_data_async(
     ------
         aiosqlite.Error: If there's an error connecting to the database
     """
-    query: str = """
-        INSERT INTO failed_predictions (person_id, sex, age, pclass, sibsp,
-        parch, fare, embarked, survived)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """
     try:
         async with pool.connection() as conn:
             async with transaction(conn):
@@ -537,7 +531,7 @@ async def insert_batch_dlq_data_async(
                     for row in results_list
                 ]
 
-                await conn.executemany(query, results_list)
+                await conn.executemany(DLQ_QUERY, results_list)
     except aiosqlite.Error as e:
         logger.error(f"Database error when inserting data: {e}")
         raise

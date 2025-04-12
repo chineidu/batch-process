@@ -36,6 +36,6 @@ spec:
         volumeMounts:
         - name: db-volume
           mountPath: /app/db
-      volumes:
-      - name: db-volume
-        emptyDir: {}  # For dev purposes; use PVC for production
+      # volumes:
+      # - name: db-volume
+      #   emptyDir: {}  # For dev purposes; use PVC for production

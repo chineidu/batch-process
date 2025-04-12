@@ -8,6 +8,18 @@ from schemas import ModelOutput, MultiPersonsSchema, MultiPredOutput, PersonSche
 
 
 def record_to_dataframe(record: PersonSchema) -> pl.DataFrame:
+    """Convert a PersonSchema record to a Polars DataFrame.
+
+    Parameters
+    ----------
+    record : PersonSchema
+        Input record containing person data.
+
+    Returns
+    -------
+    pl.DataFrame
+        Polars DataFrame containing the person data.
+    """
     if isinstance(record, PersonSchema):
         return pl.from_records([record])
     return pl.from_records(record.persons)

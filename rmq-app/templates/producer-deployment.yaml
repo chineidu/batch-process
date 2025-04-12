@@ -36,6 +36,6 @@ spec:
         volumeMounts:
         - name: data-volume
           mountPath: /app/data
-      volumes:
-      - name: data-volume
-        emptyDir: {}  # For dev purposes; use PVC for production
+      # volumes:
+      # - name: data-volume
+      #   emptyDir: {}  # For dev purposes; use PVC for production

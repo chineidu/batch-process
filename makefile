@@ -86,7 +86,7 @@ compose-down:
 	@echo "Stopping Docker Compose development environment..."
 	docker compose down
 	docker image prune -f
-	# rm -rf ./db/results.db-wal ./db/results.db-shm
+	rm -rf ./db/results.db-wal ./db/results.db-shm
 	@echo "Docker Compose development environment stopped."
 
 # Clean cache files
