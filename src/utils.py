@@ -2,16 +2,20 @@ import asyncio
 import logging
 import sqlite3
 import time
+from contextlib import asynccontextmanager
 from functools import wraps
 from pathlib import Path
 from pprint import pprint
-from typing import Any, Callable
+from typing import Any, AsyncGenerator, Callable
 
 import aiosqlite
 import requests  # type: ignore
 
 from config import app_config
-from schemas import ModelOutput
+from schemas import ModelOutput, MultiPersonsSchema, PersonSchema
+from src import create_logger
+
+logger = create_logger(name="db_utils")
 
 
 def async_timer(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -49,18 +53,226 @@ def create_path(path: str | Path) -> None:
     path : str | Path
         The file path for which to create parent directories.
 
-    Returns
-    -------
-    None
     """
     Path(path).parent.mkdir(parents=True, exist_ok=True)
 
 
-def parse_data(data: str) -> dict[str, Any]:
+def parse_data(data: str | ModelOutput) -> dict[str, Any]:
     """
     Parse data from a dictionary and return a tuple of values.
+
+    Returns
+    -------
+    tuple[Any, ...]
+        A tuple containing the parsed values.
+
+    Raises
+    ------
+    ValueError
+        If the input data is not a dictionary.
     """
-    return ModelOutput.model_validate_json(data).model_dump(by_alias=True)
+    if isinstance(data, str):
+        return ModelOutput.model_validate_json(data).model_dump(by_alias=True)
+    if isinstance(data, ModelOutput):
+        return data.model_dump(by_alias=True)
+    raise ValueError("Invalid data type. Expected str or ModelOutput.")
+
+
+class DatabaseConnectionPool:
+    """
+    A singleton class that manages a pool of database connections asynchronously.
+
+    This class implements a connection pool pattern to efficiently manage and reuse
+    database connections. It uses asyncio.Lock to prevent race conditions by ensuring
+    only one coroutine can access shared resources at a time.
+    """
+
+    _instance: "DatabaseConnectionPool | None" = None
+    _is_initialized: bool | None = None
+
+    def __new__(cls) -> "DatabaseConnectionPool":
+        """
+        Create or return the singleton instance of DatabaseConnectionPool.
+
+        Returns
+        -------
+        DatabaseConnectionPool
+            The singleton instance
+        """
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+
+        return cls._instance
+
+    def __init__(self) -> None:
+        """
+        Initialize the connection pool if not already initialized.
+
+        Creates the initial pool of connections and sets up required attributes.
+        """
+        if not self._is_initialized:
+            self._active_connections: int = 0
+            self._connection_pool: asyncio.Queue[aiosqlite.Connection] = asyncio.Queue()
+            self._lock: asyncio.Lock = asyncio.Lock()
+            self._is_initialized = True
+
+            # Default values can be overriden by .configure()
+            self._db_path = None
+            self._max_connections: int = 5
+
+    async def initialize(self) -> None:
+        """
+        Initialize the connection pool with the maximum number of connections.
+        """
+        async with self._lock:
+            # If close all connections if any
+            while not self._connection_pool.empty():
+                await self.close()
+
+            # Otherwise, create the connections
+            for _ in range(self._max_connections):
+                if self._db_path is not None:
+                    conn: aiosqlite.Connection = await aiosqlite.connect(self._db_path)
+                    # Add durability settings
+                    await conn.execute("PRAGMA journal_mode = WAL")
+                    await conn.execute("PRAGMA synchronous = NORMAL")
+                    await self._connection_pool.put(conn)
+
+    def _configure(self, db_path: str | Path, max_connections: int = 5) -> None:
+        self._db_path = db_path  # type: ignore
+        self._max_connections = max_connections
+
+    @classmethod
+    async def create_pool(
+        cls, db_path: str | Path | None = None, max_connections: int = 5
+    ) -> "DatabaseConnectionPool":
+        """
+        Create a new instance of DatabaseConnectionPool.
+
+        Returns
+        -------
+        DatabaseConnectionPool
+            A new instance of DatabaseConnectionPool
+
+        Raises
+        ------
+        ValueError
+            If the database connection pool has already been initialized.
+        """
+        instance = cls()
+
+        if instance._db_path is not None:
+            raise ValueError("Database connection pool has already been initialized. ")
+        if instance._db_path is None:
+            instance._configure(db_path, max_connections)  # type: ignore
+
+        await instance.initialize()
+        return instance
+
+    async def acquire(self) -> aiosqlite.Connection:
+        """
+        Acquire a database connection from the pool.
+
+        Returns
+        -------
+        aiosqlite.Connection
+            A database connection
+
+        Notes
+        -----
+        If the pool is empty and max connections haven't been reached,
+        creates a new connection. Otherwise, waits for an available connection.
+        """
+        async with self._lock:
+            if not self._connection_pool.empty():
+                self._active_connections += 1
+                return await self._connection_pool.get()
+
+            if self._active_connections < self._max_connections:
+                self._active_connections += 1
+                return await aiosqlite.connect(self._db_path)
+
+            self._active_connections += 1
+            return await self._connection_pool.get()
+
+    async def release(self, conn: aiosqlite.Connection) -> None:
+        """
+        Release a connection back to the pool.
+
+        Parameters
+        ----------
+        conn : aiosqlite.Connection
+            The connection to be released
+        """
+        async with self._lock:
+            self._active_connections -= 1
+
+            if self._connection_pool.qsize() < self._max_connections:
+                await self._connection_pool.put(conn)
+            else:
+                await conn.close()
+
+    async def close(self) -> None:
+        """
+        Close all connections in the pool and reset the pool state.
+        """
+        async with self._lock:
+            while not self._connection_pool.empty():
+                conn = await self._connection_pool.get()
+                await conn.close()
+            self._active_connections = 0
+            self._is_initialized = False
+
+    @asynccontextmanager
+    async def connection(self) -> AsyncGenerator[aiosqlite.Connection, None]:
+        """
+        Context manager for acquiring and releasing database connections.
+
+        Yields
+        ------
+        aiosqlite.Connection
+            A database connection from the pool
+
+        Notes
+        -----
+        Automatically releases the connection when the context is exited.
+        """
+        conn = await self.acquire()
+        try:
+            yield conn
+        except Exception as e:
+            logger.error(f"Error during database operation: {e}")
+            raise
+        finally:
+            await self.release(conn)
+
+
+@asynccontextmanager
+async def transaction(
+    conn: aiosqlite.Connection,
+) -> AsyncGenerator[aiosqlite.Connection, None]:
+    """
+    A context manager for managing database transactions with aiosqlite.
+
+
+    Yields
+    -------
+    aiosqlite.Connection
+        The database connection
+
+    Raises
+    ------
+    Exception
+        If an error occurs during the transaction
+    """  # noqa: DOC502
+    try:
+        await conn.execute("BEGIN")
+        yield conn
+        await conn.commit()
+
+    except Exception as e:
+        await conn.rollback()
+        raise e
 
 
 def init_database_sync() -> tuple[sqlite3.Connection, sqlite3.Cursor]:
@@ -73,10 +285,10 @@ def init_database_sync() -> tuple[sqlite3.Connection, sqlite3.Cursor]:
         A tuple containing the database connection and cursor objects.
     """
     # Create the database file if it doesn't exist
-    create_path(app_config.db.database)
+    create_path(app_config.db.db_path)
 
     # Connect to the SQLite database (or create it if it doesn't exist)
-    conn = sqlite3.connect(app_config.db.database)
+    conn = sqlite3.connect(app_config.db.db_path)
 
     # Create a cursor object to execute SQL commands
     cursor = conn.cursor()
@@ -115,57 +327,45 @@ def init_database_sync() -> tuple[sqlite3.Connection, sqlite3.Cursor]:
     return conn, cursor
 
 
-async def init_database_async() -> aiosqlite.Connection:
+async def init_database_async(pool: DatabaseConnectionPool) -> None:
     """
     Initialize SQLite database connection and create users table asynchronously.
-
-    Returns
-    -------
-    aiosqlite.Connection
-        The database connection object.
     """
-    # Create the database file if it doesn't exist
-    create_path(app_config.db.database)
-
-    # Connect to the SQLite database (or create it if it doesn't exist)
-    conn = await aiosqlite.connect(app_config.db.database)
-
-    # Create a table
-    await conn.execute(
+    async with pool.connection() as conn:
+        # Create a table
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS predictions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                status TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                survived INTEGER,
+                probability REAL
+            )
         """
-        CREATE TABLE IF NOT EXISTS predictions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            status TEXT NOT NULL,
-            timestamp TEXT NOT NULL,
-            user_id TEXT NOT NULL,
-            survived INTEGER,
-            probability REAL
         )
-    """
-    )
 
-    await conn.execute(
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS failed_predictions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                person_id TEXT NOT NULL,
+                sex TEXT,
+                age INTEGER,
+                pclass INTEGER,
+                sibsp INTEGER,
+                parch INTEGER,
+                fare REAL,
+                embarked TEXT,
+                survived INTEGER
+                timestamp TEXT NOT NULL
+            )
         """
-        CREATE TABLE IF NOT EXISTS failed_predictions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            person_id TEXT NOT NULL,
-            sex TEXT,
-            age INTEGER,
-            pclass INTEGER,
-            sibsp INTEGER,
-            parch INTEGER,
-            fare REAL,
-            embarked TEXT,
-            survived INTEGER
-            timestamp TEXT NOT NULL
         )
-    """
-    )
 
-    # Commit the changes
-    await conn.commit()
-
-    return conn
+        # Commit the changes
+        await conn.commit()
 
 
 def insert_data_sync(conn: sqlite3.Connection, *, cursor: sqlite3.Cursor, data: str) -> None:
@@ -202,7 +402,7 @@ def insert_data_sync(conn: sqlite3.Connection, *, cursor: sqlite3.Cursor, data: 
     conn.commit()
 
 
-async def _insert_data_async(conn: aiosqlite.Connection, data: str) -> None:
+async def _insert_data_async(conn: aiosqlite.Connection, data: str | ModelOutput) -> None:
     """
     Internal helper function to insert data asynchronously into the predictions table.
 
@@ -210,8 +410,8 @@ async def _insert_data_async(conn: aiosqlite.Connection, data: str) -> None:
     ----------
     conn : aiosqlite.Connection
         Asynchronous SQLite database connection object
-    data : str
-        JSON string containing prediction data
+    data : str | ModelOutput
+        JSON string or ModelOutput object containing prediction data
 
     Returns
     -------
@@ -234,16 +434,18 @@ async def _insert_data_async(conn: aiosqlite.Connection, data: str) -> None:
     await conn.commit()
 
 
-async def insert_data_async(conn: aiosqlite.Connection, data: str, logger: logging.Logger) -> None:
+async def insert_data_async(
+    pool: DatabaseConnectionPool, data: str | ModelOutput, logger: logging.Logger
+) -> None:
     """
     Insert data asynchronously into a table using a database connection.
 
     Parameters
     ----------
-    conn : aiosqlite.Connection
-        Asynchronous SQLite database connection object
-    data : str
-        JSON string containing prediction data
+    pool : DatabaseConnectionPool
+        Database connection pool
+    data : str | ModelOutput
+        JSON string or ModelOutput object containing prediction data
     logger : logging.Logger
         Logger instance for error reporting
 
@@ -259,7 +461,9 @@ async def insert_data_async(conn: aiosqlite.Connection, data: str, logger: loggi
         If any other unexpected error occurs
     """
     try:
-        await _insert_data_async(conn, data=data)
+        async with pool.connection() as conn:
+            async with transaction(conn):
+                await _insert_data_async(conn, data=data)
     except aiosqlite.Error as e:
         logger.error(f"Database error when inserting data: {e}")
         raise
@@ -269,7 +473,7 @@ async def insert_data_async(conn: aiosqlite.Connection, data: str, logger: loggi
 
 
 async def insert_dlq_data_async(
-    conn: aiosqlite.Connection, data: str, logger: logging.Logger
+    pool: DatabaseConnectionPool, data: str, logger: logging.Logger
 ) -> None:
     """
     Insert data asynchronously into a table using a database connection.
@@ -280,7 +484,35 @@ async def insert_dlq_data_async(
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
     try:
-        conn.execute(query, data)
+        async with pool.connection() as conn:
+            async with transaction(conn):
+                await conn.execute(query, data)
+    except aiosqlite.Error as e:
+        logger.error(f"Database error when inserting data: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error when inserting data: {e}")
+        raise
+
+
+async def insert_batch_dlq_data_async(
+    pool: DatabaseConnectionPool, data: str, logger: logging.Logger
+) -> None:
+    """
+    Insert data asynchronously into a table using a database connection.
+    """
+    query: str = """
+        INSERT INTO failed_predictions (person_id, sex, age, pclass, sibsp,
+        parch, fare, embarked, survived)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
+    try:
+        async with pool.connection() as conn:
+            async with transaction(conn):
+                results_list: list[PersonSchema] = MultiPersonsSchema.model_validate_json(
+                    data
+                ).persons
+                await conn.executemany(query, results_list)
     except aiosqlite.Error as e:
         logger.error(f"Database error when inserting data: {e}")
         raise

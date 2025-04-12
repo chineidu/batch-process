@@ -32,7 +32,10 @@ class Data(BaseSchema):
 class DB(BaseSchema):
     """Database configuration class."""
 
-    database: str = Field(description="Database name")
+    db_path: str = Field(description="Database name")
+    max_connections: int = Field(
+        description="The maximum connections the database can connect to at a given time."
+    )
 
 
 class Model(BaseSchema):
@@ -64,6 +67,8 @@ class BatchData(BaseSchema):
     is_remote: bool = Field(description="Whether the data is remote")
     remote_data_id: str = Field(description="Remote data id")
     download_path: str = Field(description="Download path")
+    batch_mode: bool = Field(description="Whether to use batch mode")
+    batch_size: int = Field(description="Batch size")
 
 
 class AppConfig(BaseSchema):

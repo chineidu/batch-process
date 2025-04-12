@@ -31,7 +31,7 @@ services:
     volumes:
       - ./db:/app/db  # Bind mount for the data folder
     deploy:
-      replicas: 3  # Number of replicas
+      replicas: 4  # Number of replicas
     # CPU limits (0.5 = 50% of one core)
     cpus: "0.5"
     develop:

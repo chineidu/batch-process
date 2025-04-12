@@ -7,7 +7,12 @@ from datetime import datetime
 from typing import Any, Callable, Coroutine
 
 from aio_pika import ExchangeType, IncomingMessage, Message, connect_robust
-from aio_pika.abc import AbstractChannel, AbstractExchange, AbstractRobustConnection
+from aio_pika.abc import (
+    AbstractChannel,
+    AbstractExchange,
+    AbstractQueue,
+    AbstractRobustConnection,
+)
 
 from config import app_settings
 from schemas import MultiPersonsSchema, PersonSchema
@@ -74,7 +79,7 @@ class RabbitMQManager:
                     type=ExchangeType.DIRECT,
                     durable=True,
                 )
-                self.dl_queue = await self.channel.declare_queue(
+                self.dl_queue: AbstractQueue = await self.channel.declare_queue(
                     name=f"{app_settings.RABBITMQ_DIRECT_EXCHANGE}.dlq",
                     durable=True,
                 )
@@ -113,16 +118,20 @@ class RabbitMQManager:
             await self.connection.close()
             logger.info(f" [+] Process-{self.process_id} closed {self.__class__.__name__}")
 
+    async def _publish(self, message: PersonSchema | MultiPersonsSchema) -> Message:
+        message_data: bytes = message.model_dump_json(by_alias=True).encode("utf-8")
+        rmq_message: Message = Message(
+            body=message_data,
+            content_type="application/json",
+            content_encoding="utf-8",
+            expiration=app_settings.RABBITMQ_EXPIRATION_MS,
+            timestamp=datetime.now(),
+        )
+        return rmq_message
+
     async def publish(self, message: PersonSchema) -> bool:
         try:
-            message_data: bytes = message.model_dump_json(by_alias=True).encode("utf-8")
-            rmq_message: Message = Message(
-                body=message_data,
-                content_type="application/json",
-                content_encoding="utf-8",
-                expiration=app_settings.RABBITMQ_EXPIRATION_MS,
-                timestamp=datetime.now(),
-            )
+            rmq_message: Message = await self._publish(message)
             await self.direct_exchange.publish(  # type: ignore
                 message=rmq_message,
                 routing_key=app_settings.RABBITMQ_DIRECT_EXCHANGE,
@@ -138,14 +147,7 @@ class RabbitMQManager:
 
     async def batch_publish(self, message: MultiPersonsSchema) -> bool:
         try:
-            message_data: bytes = message.model_dump_json(by_alias=True).encode("utf-8")
-            rmq_message: Message = Message(
-                body=message_data,
-                content_type="application/json",
-                content_encoding="utf-8",
-                expiration=app_settings.RABBITMQ_EXPIRATION_MS,
-                timestamp=datetime.now(),
-            )
+            rmq_message: Message = await self._publish(message)
             await self.direct_exchange.publish(  # type: ignore
                 message=rmq_message,
                 routing_key=app_settings.RABBITMQ_DIRECT_EXCHANGE,
@@ -175,7 +177,7 @@ class RabbitMQManager:
                 await callback(message_data)  # type: ignore
 
         try:
-            queue = await self.channel.declare_queue(  # type: ignore
+            queue: AbstractQueue = await self.channel.declare_queue(  # type: ignore
                 name=app_settings.RABBITMQ_DIRECT_EXCHANGE,
                 durable=True,
                 arguments={

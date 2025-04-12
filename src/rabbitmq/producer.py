@@ -1,12 +1,12 @@
 import asyncio
 from pathlib import Path
-from typing import Any
+from typing import Any, Generator
 
 import polars as pl
 from tqdm import tqdm
 
 from config import app_config
-from schemas import PersonSchema
+from schemas import MultiPersonsSchema, PersonSchema
 from src import PACKAGE_PATH, create_logger
 from src.ml.train import transform_age, transform_cat_column_to_lower, transform_id
 from src.utils import create_path, download_file_from_gdrive_async
@@ -72,7 +72,7 @@ async def _get_batch_data() -> list[dict[str, Any]]:
     return batch_data
 
 
-async def publish_messages() -> None:
+async def sequential_publish() -> None:
     """Publish messages to RabbitMQ from batch data.
 
     Returns
@@ -94,27 +94,50 @@ async def publish_messages() -> None:
         await rabbitmq_manager.publish(message)
 
 
-async def batch_publish_messages() -> None:
-    """Publish messages to RabbitMQ from batch data.
+async def batch_publish_messages(batch_size: int = 50) -> None:
+    """Publish messages to RabbitMQ from batch data in chunks of size N.
+
+    Parameters
+    ----------
+    batch_size : int, optional
+        The size of each batch to process, by default 50.
 
     Returns
     -------
     None
     """
+    # Fetch the batch data
     batch_data: list[dict[str, Any]] = await _get_batch_data()
 
-    for data in (
-        batch_data := tqdm(
-            batch_data,
-            desc="Processing batch data",
-            unit="batch",
-            total=len(batch_data),
-        )  # type: ignore
-    ):
-        message: PersonSchema = PersonSchema(**data)
+    # Utility function to split data into chunks
+    def chunkify(data: list[Any], chunk_size: int) -> Generator[list[dict[str, Any]], None, None]:
+        for i in range(0, len(data), chunk_size):
+            yield data[i : i + chunk_size]
 
-        await rabbitmq_manager.publish(message)
+    # Process the data in chunks
+    for chunk in tqdm(
+        chunkify(batch_data, batch_size),  # type: ignore
+        desc="Processing batch data",
+        unit="chunk",
+        total=(len(batch_data) // batch_size) + (1 if len(batch_data) % batch_size > 0 else 0),
+    ):
+        # Process each chunk (e.g., publish all messages in the chunk)
+        message: MultiPersonsSchema = MultiPersonsSchema(persons=chunk)  # type: ignore
+        await rabbitmq_manager.batch_publish(message)
+
+
+async def publish_data(batch_mode: bool = False, batch_size: int = 50) -> None:
+    """Publish messages to RabbitMQ."""
+    if batch_mode:
+        await batch_publish_messages(batch_size=batch_size)
+    else:
+        await sequential_publish()
 
 
 if __name__ == "__main__":
-    asyncio.run(publish_messages())
+    asyncio.run(
+        publish_data(
+            batch_mode=app_config.data.batch_data.batch_mode,
+            batch_size=app_config.data.batch_data.batch_size,
+        )
+    )
