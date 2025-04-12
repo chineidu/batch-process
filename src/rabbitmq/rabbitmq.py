@@ -128,9 +128,16 @@ class RabbitMQManager:
 
     async def close(self) -> None:
         """Close the RabbitMQ connection."""
-        if self.connection:
-            await self.connection.close()
+        try:
+            if self.channel and not self.channel.is_closed:
+                await self.channel.close()
+
+            if self.connection and not self.connection.is_closed:
+                await self.connection.close()
             logger.info(f" [+] Process-{self.process_id} closed {self.__class__.__name__}")
+
+        except Exception as e:
+            logger.error(f" [x] Error closing {self.__class__.__name__}: {e}")
 
     async def _publish(self, message: PersonSchema | MultiPersonsSchema) -> Message:
         message_data: bytes = message.model_dump_json(by_alias=True).encode("utf-8")

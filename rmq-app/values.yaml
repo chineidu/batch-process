@@ -28,6 +28,7 @@ rabbitmq:
 
 worker:
   image: chineidu/rmq-worker:v1
+  imagePullPolicy: Always
   replicas: 2
   resources:
     limits:
@@ -39,6 +40,7 @@ worker:
 
 producer:
   image: chineidu/rmq-producer:v1
+  imagePullPolicy: Always
   resources:
     limits:
       cpu: 500m

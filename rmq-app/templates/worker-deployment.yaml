@@ -12,9 +12,14 @@ spec:
       labels:
         app: {{ .Release.Name }}-worker
     spec:
+      initContainers:
+      - name: wait-for-rabbitmq
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nc -z {{ .Release.Name }}-rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;']
       containers:
       - name: worker
         image: {{ .Values.worker.image }}
+        imagePullPolicy: {{ .Values.worker.imagePullPolicy }}
         resources:
           limits:
             cpu: {{ .Values.worker.resources.limits.cpu }}

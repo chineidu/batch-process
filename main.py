@@ -1,9 +1,11 @@
 import asyncio
 import io
 import sys
+import time
+from functools import wraps
 from pathlib import Path
 from pprint import pprint
-from typing import Any
+from typing import Any, Callable
 
 import anyio
 import joblib
@@ -16,7 +18,6 @@ from src.ml.utils import get_batch_prediction, get_prediction
 from src.rabbitmq import rabbitmq_manager
 from src.utils import (
     DatabaseConnectionPool,
-    async_timer,
     create_path,
     init_database_async,
     insert_batch_dlq_data_async,
@@ -25,6 +26,32 @@ from src.utils import (
 )
 
 logger = create_logger(name="RMQ_consumer")
+
+
+def async_timer(func: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    A decorator that measures and prints the execution time of an async function.
+
+    Parameters
+    ----------
+    func : Callable
+        The async function to be timed.
+
+    Returns
+    -------
+    Callable
+        A wrapped async function that prints execution time.
+    """
+
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        start_time: float = time.perf_counter()
+        result = await func(*args, **kwargs)
+        duration: float = time.perf_counter() - start_time
+        logger.info(f"{func.__name__} executed in {duration:.2f} seconds")
+        return result
+
+    return wrapper
 
 
 async def load_model_dict(filepath: Path) -> dict[str, Any]:
@@ -245,11 +272,12 @@ async def process_queue(batch_mode: bool = False) -> None:
             except asyncio.TimeoutError:
                 if await is_queue_empty(processed_messages):
                     logger.info(f"All messages processed after {processed_messages}. Exiting...")
+                    await asyncio.sleep(2)  # Add delay for graceful shutdown
                     break
     finally:
         # Close connection
-        await pool.close()
         await rabbitmq_manager.close()
+        await pool.close()
 
 
 if __name__ == "__main__":

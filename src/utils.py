@@ -1,12 +1,9 @@
 import asyncio
 import logging
 import sqlite3
-import time
 from contextlib import asynccontextmanager
-from functools import wraps
 from pathlib import Path
-from pprint import pprint
-from typing import Any, AsyncGenerator, Callable
+from typing import Any, AsyncGenerator
 
 import aiosqlite
 import requests  # type: ignore
@@ -16,32 +13,6 @@ from schemas import ModelOutput, MultiPersonsSchema
 from src import create_logger
 
 logger = create_logger(name="db_utils")
-
-
-def async_timer(func: Callable[..., Any]) -> Callable[..., Any]:
-    """
-    A decorator that measures and prints the execution time of an async function.
-
-    Parameters
-    ----------
-    func : Callable
-        The async function to be timed.
-
-    Returns
-    -------
-    Callable
-        A wrapped async function that prints execution time.
-    """
-
-    @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
-        start_time: float = time.perf_counter()
-        result = await func(*args, **kwargs)
-        duration: float = time.perf_counter() - start_time
-        pprint(f"{func.__name__} executed in {duration:.2f} seconds")
-        return result
-
-    return wrapper
 
 
 def create_path(path: str | Path) -> None:
