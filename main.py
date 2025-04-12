@@ -1,4 +1,5 @@
 import asyncio
+import io
 import sys
 from pathlib import Path
 from pprint import pprint
@@ -26,11 +27,41 @@ from src.utils import (
 logger = create_logger(name="RMQ_consumer")
 
 
+async def load_model_dict(filepath: Path) -> dict[str, Any]:
+    """Asynchronously load the model dictionary from a file.
+
+    Parameters
+    ----------
+    filepath : Path
+        The path to the file containing the model dictionary.
+
+    Returns
+    -------
+    dict[str, Any]
+        The loaded model dictionary.
+    """
+    async with await anyio.open_file(filepath, "rb") as f:
+        contents: bytes = await f.read()
+        # Create a file-like object from the bytes
+        bytes_io = io.BytesIO(contents)
+        # Run joblib.load in a thread
+        return await anyio.to_thread.run_sync(joblib.load, bytes_io)
+
+
 async def single_prediction_callback(
     pool: DatabaseConnectionPool, message: dict[str, Any], model_dict: dict[str, Any]
 ) -> None:
     """
     Process incoming messages and make predictions.
+
+    Parameters
+    ----------
+    pool : DatabaseConnectionPool
+        The database connection pool.
+    message : dict[str, Any]
+        The incoming message.
+    model_dict : dict[str, Any]
+        The model dictionary.
     """
     record: PersonSchema = PersonSchema(**message)
     result: ModelOutput = await asyncio.to_thread(
@@ -48,6 +79,15 @@ async def batch_prediction_callback(
     pool: DatabaseConnectionPool, message: dict[str, Any], model_dict: dict[str, Any]
 ) -> int:
     """Process batch messages and make predictions.
+
+    Parameters
+    ----------
+    pool : DatabaseConnectionPool
+        The database connection pool.
+    message : dict[str, Any]
+        The incoming message.
+    model_dict : dict[str, Any]
+        The model dictionary.
 
     Returns
     -------
@@ -73,6 +113,8 @@ async def dlq_callback(pool: DatabaseConnectionPool, message: dict[str, Any]) ->
 
     Parameters
     ----------
+    pool : DatabaseConnectionPool
+        The database connection pool.
     message : dict[str, Any]
         The message from DLQ to process
     """
@@ -84,9 +126,17 @@ async def dlq_callback(pool: DatabaseConnectionPool, message: dict[str, Any]) ->
 
 async def batch_dlq_callback(pool: DatabaseConnectionPool, message: dict[str, Any]) -> None:
     """
-    Process batch messages from the dead letter queue."""
+    Process batch messages from the dead letter queue.
+
+    Parameters
+    ----------
+    pool : DatabaseConnectionPool
+        The database connection pool.
+    message : dict[str, Any]
+        The message from DLQ to process
+    """
     record: MultiPersonsSchema = MultiPersonsSchema(**message)
-    await insert_batch_dlq_data_async(pool=pool, data=record.model_dump_json(), logger=logger)
+    await insert_batch_dlq_data_async(pool=pool, data=record, logger=logger)
     logger.info("Inserted batch DLQ data with into database.")
     return
 
@@ -94,6 +144,11 @@ async def batch_dlq_callback(pool: DatabaseConnectionPool, message: dict[str, An
 async def is_queue_empty(processed_messages: int) -> bool:
     """
     Check if the RabbitMQ queue is empty.
+
+    Parameters
+    ----------
+    processed_messages : int
+        The number of messages processed.
 
     Returns
     -------
@@ -117,11 +172,16 @@ async def is_queue_empty(processed_messages: int) -> bool:
 
 @async_timer
 async def process_queue(batch_mode: bool = False) -> None:
-    """Process incoming messages and make predictions."""
+    """Process incoming messages and make predictions.
+
+    Parameters
+    ----------
+    batch_mode : bool, optional
+        If True, process batch messages, by default False
+    """
     model_dict_fp: Path = PACKAGE_PATH / "models/model.pkl"
 
-    async with await anyio.open_file(model_dict_fp, "rb") as f:
-        model_dict = joblib.load(f)  # type: ignore
+    model_dict: dict[str, Any] = await load_model_dict(filepath=model_dict_fp)
 
     # Processed message counter and event completion flag
     processed_messages: int = 0
@@ -162,7 +222,17 @@ async def process_queue(batch_mode: bool = False) -> None:
             logger.info(f"All messages processed. Total messages: {processed_messages}")
 
     async def dlq_wrapper(message: dict[str, Any]) -> None:
-        await dlq_callback(pool, message)
+        """Process messages from the dead letter queue.
+
+        Parameters
+        ----------
+        message : dict[str, Any]
+            The message from DLQ to process
+        """
+        if batch_mode:
+            await batch_dlq_callback(pool, message)
+        else:
+            await dlq_callback(pool, message)
 
     await rabbitmq_manager.connect()
     await rabbitmq_manager.consume(callback=prediction_wrapper)  # type: ignore
@@ -178,6 +248,7 @@ async def process_queue(batch_mode: bool = False) -> None:
                     break
     finally:
         # Close connection
+        await pool.close()
         await rabbitmq_manager.close()
 
 

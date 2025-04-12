@@ -12,7 +12,7 @@ import aiosqlite
 import requests  # type: ignore
 
 from config import app_config
-from schemas import ModelOutput, MultiPersonsSchema, PersonSchema
+from schemas import ModelOutput, MultiPersonsSchema
 from src import create_logger
 
 logger = create_logger(name="db_utils")
@@ -60,6 +60,11 @@ def create_path(path: str | Path) -> None:
 def parse_data(data: str | ModelOutput) -> dict[str, Any]:
     """
     Parse data from a dictionary and return a tuple of values.
+
+    Parameters
+    ----------
+    data : str | ModelOutput
+        The input data to be parsed.
 
     Returns
     -------
@@ -132,6 +137,7 @@ class DatabaseConnectionPool:
             # Otherwise, create the connections
             for _ in range(self._max_connections):
                 if self._db_path is not None:
+                    create_path(self._db_path)
                     conn: aiosqlite.Connection = await aiosqlite.connect(self._db_path)
                     # Add durability settings
                     await conn.execute("PRAGMA journal_mode = WAL")
@@ -148,6 +154,13 @@ class DatabaseConnectionPool:
     ) -> "DatabaseConnectionPool":
         """
         Create a new instance of DatabaseConnectionPool.
+
+        Parameters
+        ----------
+        db_path : str | Path | None, optional
+            The path to the database file, by default None
+        max_connections : int, optional
+            The maximum number of connections to keep in the pool, by default 5
 
         Returns
         -------
@@ -254,6 +267,10 @@ async def transaction(
     """
     A context manager for managing database transactions with aiosqlite.
 
+    Parameters
+    ----------
+    conn : aiosqlite.Connection
+        The database connection
 
     Yields
     -------
@@ -264,7 +281,7 @@ async def transaction(
     ------
     Exception
         If an error occurs during the transaction
-    """  # noqa: DOC502
+    """
     try:
         await conn.execute("BEGIN")
         yield conn
@@ -318,7 +335,7 @@ def init_database_sync() -> tuple[sqlite3.Connection, sqlite3.Cursor]:
             parch INTEGER,
             fare REAL,
             embarked TEXT,
-            survived INTEGER
+            timestamp TEXT NOT NULL
         )
     """
     )
@@ -330,6 +347,11 @@ def init_database_sync() -> tuple[sqlite3.Connection, sqlite3.Cursor]:
 async def init_database_async(pool: DatabaseConnectionPool) -> None:
     """
     Initialize SQLite database connection and create users table asynchronously.
+
+    Parameters
+    ----------
+    pool : DatabaseConnectionPool
+        The database connection pool
     """
     async with pool.connection() as conn:
         # Create a table
@@ -358,7 +380,6 @@ async def init_database_async(pool: DatabaseConnectionPool) -> None:
                 parch INTEGER,
                 fare REAL,
                 embarked TEXT,
-                survived INTEGER
                 timestamp TEXT NOT NULL
             )
         """
@@ -381,9 +402,6 @@ def insert_data_sync(conn: sqlite3.Connection, *, cursor: sqlite3.Cursor, data: 
     data : str
         JSON string containing prediction data
 
-    Returns
-    -------
-    None
     """
     parsed_data: dict[str, Any] = parse_data(data)
     query: str = """
@@ -413,9 +431,6 @@ async def _insert_data_async(conn: aiosqlite.Connection, data: str | ModelOutput
     data : str | ModelOutput
         JSON string or ModelOutput object containing prediction data
 
-    Returns
-    -------
-    None
     """
     parsed_data: dict[str, Any] = parse_data(data)
     query: str = """
@@ -449,10 +464,6 @@ async def insert_data_async(
     logger : logging.Logger
         Logger instance for error reporting
 
-    Returns
-    -------
-    None
-
     Raises
     ------
     aiosqlite.Error
@@ -477,10 +488,24 @@ async def insert_dlq_data_async(
 ) -> None:
     """
     Insert data asynchronously into a table using a database connection.
+
+    Parameters
+    ----------
+    pool : DatabaseConnectionPool
+        Database connection pool
+    data : str
+        JSON string containing prediction data
+    logger : logging.Logger
+        Logger instance for error reporting
+
+    Raises
+    ------
+        aiosqlite.Error: If there's an error connecting to the database
+        Exception: If any other unexpected error occurs
     """
     query: str = """
-        INSERT INTO failed_predictions (person_id, sex, age, pclass, sibsp,
-        parch, fare, embarked, survived)
+        INSERT INTO failed_predictions (person_id, sex, age, pclass,
+        sibsp, parch, fare, embarked)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
     try:
@@ -496,10 +521,21 @@ async def insert_dlq_data_async(
 
 
 async def insert_batch_dlq_data_async(
-    pool: DatabaseConnectionPool, data: str, logger: logging.Logger
+    pool: DatabaseConnectionPool, data: str | MultiPersonsSchema, logger: logging.Logger
 ) -> None:
     """
     Insert data asynchronously into a table using a database connection.
+
+    Parameters
+    ----------
+    pool : DatabaseConnectionPool
+        Database connection pool
+    data : str | MultiPersonsSchema
+        JSON string or MultiPersonsSchema object containing prediction data
+
+    Raises
+    ------
+        aiosqlite.Error: If there's an error connecting to the database
     """
     query: str = """
         INSERT INTO failed_predictions (person_id, sex, age, pclass, sibsp,
@@ -509,9 +545,27 @@ async def insert_batch_dlq_data_async(
     try:
         async with pool.connection() as conn:
             async with transaction(conn):
-                results_list: list[PersonSchema] = MultiPersonsSchema.model_validate_json(
-                    data
-                ).persons
+                if isinstance(data, str):
+                    results_list: list[dict[str, Any]] = MultiPersonsSchema.model_validate_json(
+                        data
+                    ).model_dump()["persons"]
+                else:
+                    results_list = data.model_dump()["persons"]
+                results_list: list[tuple[Any, ...]] = [  # type: ignore
+                    (
+                        row["id"],
+                        row["sex"],
+                        row["age"],
+                        row["pclass"],
+                        row["sibsp"],
+                        row["parch"],
+                        row["fare"],
+                        row["embarked"],
+                        row["timestamp"],
+                    )
+                    for row in results_list
+                ]
+
                 await conn.executemany(query, results_list)
     except aiosqlite.Error as e:
         logger.error(f"Database error when inserting data: {e}")
@@ -522,6 +576,15 @@ async def insert_batch_dlq_data_async(
 
 
 def download_file_from_gdrive(file_id: str | Path, destination: str | Path) -> None:
+    """This is used to download files from the Google Drive
+
+    Parameters
+    ----------
+    file_id : str | Path
+        The ID of the file to download
+    destination : str | Path
+        The path to save the downloaded file
+    """
     download_url: str = f"https://drive.google.com//uc?export=download&id={file_id}"
     response = requests.get(download_url, stream=True)
     # Raise an exception for bad status codes
@@ -533,4 +596,13 @@ def download_file_from_gdrive(file_id: str | Path, destination: str | Path) -> N
 
 
 async def download_file_from_gdrive_async(file_id: str | Path, destination: str | Path) -> None:
+    """This is used to asynchronously download files from the Google Drive
+
+    Parameters
+    ----------
+    file_id : str | Path
+        The ID of the file to download
+    destination : str | Path
+        The path to save the downloaded file
+    """
     return await asyncio.to_thread(download_file_from_gdrive, file_id, destination)

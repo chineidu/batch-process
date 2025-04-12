@@ -6,6 +6,11 @@ from pydantic.alias_generators import to_camel
 
 
 def round_probability(value: float) -> float:
+    """Round a float value to two decimal places.
+
+    Returns:
+        float: Rounded value.
+    """
     if isinstance(value, float):
         return round(value, 2)
     return value

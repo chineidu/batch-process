@@ -30,6 +30,7 @@ class RabbitMQManager:
     _initialized: bool = False
 
     def __new__(cls) -> RabbitMQManager:
+        """Create or return the singleton instance of RabbitMQManager."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
@@ -49,6 +50,18 @@ class RabbitMQManager:
         initial_delay: float = 1.0,
         backoff_factor: float = 2.0,
     ) -> bool:
+        """Connect to RabbitMQ and declare the exchange and queue.
+
+        Parameters
+        -----------
+            max_attempts (int): The maximum number of attempts to connect.
+            initial_delay (float): The initial delay between attempts.
+            backoff_factor (float): The factor to multiply the delay by for each attempt.
+
+        Returns
+        --------
+            bool: True if the connection was successful, False otherwise.
+        """
         delay: float = initial_delay
         attempt: int = 0
 
@@ -114,6 +127,7 @@ class RabbitMQManager:
         return False
 
     async def close(self) -> None:
+        """Close the RabbitMQ connection."""
         if self.connection:
             await self.connection.close()
             logger.info(f" [+] Process-{self.process_id} closed {self.__class__.__name__}")
@@ -130,6 +144,16 @@ class RabbitMQManager:
         return rmq_message
 
     async def publish(self, message: PersonSchema) -> bool:
+        """Publish a message to RabbitMQ.
+
+        Parameters
+        -----------
+            message (PersonSchema): The message to publish.
+
+        Returns
+        --------
+            bool: True if the message was published successfully, False otherwise.
+        """
         try:
             rmq_message: Message = await self._publish(message)
             await self.direct_exchange.publish(  # type: ignore
@@ -146,6 +170,16 @@ class RabbitMQManager:
             return False
 
     async def batch_publish(self, message: MultiPersonsSchema) -> bool:
+        """Publish a message to RabbitMQ.
+
+        Parameters
+        -----------
+            message (PersonSchema): The message to publish.
+
+        Returns
+        --------
+            bool: True if the message was published successfully, False otherwise.
+        """
         try:
             rmq_message: Message = await self._publish(message)
             await self.direct_exchange.publish(  # type: ignore
@@ -164,6 +198,18 @@ class RabbitMQManager:
     async def consume(
         self, callback: Callable[[IncomingMessage], Coroutine[Any, Any, None]]
     ) -> bool:
+        """Callback function to handle incoming messages.
+
+        Parameters
+        -----------
+            callback (Callable[[IncomingMessage], Coroutine[Any, Any, None]]): The callback
+            function to handle incoming messages.
+
+        Returns
+        --------
+            bool: True if the message was consumed successfully, False otherwise.
+        """
+
         async def on_message_callback(message: IncomingMessage) -> None:
             """Callback function to handle incoming messages.
 
@@ -202,6 +248,18 @@ class RabbitMQManager:
     async def consume_dlq(
         self, callback: Callable[[IncomingMessage], Coroutine[Any, Any, None]]
     ) -> bool:
+        """Callback function to handle incoming messages.
+
+        Parameters
+        -----------
+            callback (Callable[[IncomingMessage], Coroutine[Any, Any, None]]):
+            The callback function to handle incoming messages.
+
+        Returns
+        --------
+            bool: True if the message was consumed successfully, False otherwise.
+        """
+
         async def on_dlq_message_callback(message: IncomingMessage) -> None:
             try:
                 async with message.process():  # type: ignore
