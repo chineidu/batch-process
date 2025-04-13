@@ -9,7 +9,7 @@ import aiosqlite
 import requests  # type: ignore
 
 from config import app_config
-from schemas import ModelOutput, MultiPersonsSchema
+from schemas import ModelOutput, MultiPersonsSchema, PersonSchema
 from src import create_logger
 
 logger = create_logger(name="db_utils")
@@ -39,7 +39,7 @@ def create_path(path: str | Path) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
 
 
-def parse_data(data: str | ModelOutput) -> dict[str, Any]:
+def parse_data(data: str | ModelOutput) -> tuple[Any, ...]:
     """
     Parse data from a dictionary and return a tuple of values.
 
@@ -58,11 +58,53 @@ def parse_data(data: str | ModelOutput) -> dict[str, Any]:
     ValueError
         If the input data is not a dictionary.
     """
+    if not isinstance(data, (str, ModelOutput)):
+        raise ValueError("Invalid data type. Expected str or ModelOutput.")
+
     if isinstance(data, str):
-        return ModelOutput.model_validate_json(data).model_dump(by_alias=True)
-    if isinstance(data, ModelOutput):
-        return data.model_dump(by_alias=True)
-    raise ValueError("Invalid data type. Expected str or ModelOutput.")
+        formated_data: dict[str, Any] = ModelOutput.model_validate_json(data).model_dump(
+            by_alias=True
+        )
+    elif isinstance(data, ModelOutput):
+        formated_data = data.model_dump(by_alias=True)
+
+    formated_data: tuple[str, ...] = (  # type: ignore
+        formated_data["status"],
+        formated_data["timestamp"],
+        formated_data["data"]["id"],
+        formated_data["data"]["survived"],
+        formated_data["data"]["probability"],
+    )
+    return formated_data  # type: ignore
+
+
+def _extract_dlq_data(data: dict[str, Any]) -> tuple[Any, ...]:
+    """
+    Extract data from a dictionary and return a tuple of values.
+
+    Parameters
+    ----------
+    data : dict[str, Any]
+        The input data to be extracted.
+
+    Returns
+    -------
+    tuple[Any, ...]
+        A tuple containing the extracted values.
+    """
+    result: tuple[str, ...] = (
+        data["id"],
+        data["sex"],
+        data["age"],
+        data["pclass"],
+        data["sibsp"],
+        data["parch"],
+        data["fare"],
+        data["embarked"],
+        data["timestamp"],
+    )
+
+    return result
 
 
 class DatabaseConnectionPool:
@@ -185,7 +227,7 @@ class DatabaseConnectionPool:
 
             if self._active_connections < self._max_connections:
                 self._active_connections += 1
-                return await aiosqlite.connect(self._db_path)
+                return await aiosqlite.connect(self._db_path)  # type: ignore
 
             self._active_connections += 1
             return await self._connection_pool.get()
@@ -385,16 +427,9 @@ def insert_data_sync(conn: sqlite3.Connection, *, cursor: sqlite3.Cursor, data: 
         JSON string containing prediction data
 
     """
-    parsed_data: dict[str, Any] = parse_data(data)
-    record: tuple[str, ...] = (
-        parsed_data["status"],
-        parsed_data["timestamp"],
-        parsed_data["data"]["id"],
-        parsed_data["data"]["survived"],
-        parsed_data["data"]["probability"],
-    )
+    parsed_data: tuple[str, ...] = parse_data(data)
+    cursor.execute(QUERY, parsed_data)
 
-    cursor.execute(QUERY, record)
     conn.commit()
 
 
@@ -410,16 +445,9 @@ async def _insert_data_async(conn: aiosqlite.Connection, data: str | ModelOutput
         JSON string or ModelOutput object containing prediction data
 
     """
-    parsed_data: dict[str, Any] = parse_data(data)
-    record: tuple[str, ...] = (
-        parsed_data["status"],
-        parsed_data["timestamp"],
-        parsed_data["data"]["id"],
-        parsed_data["data"]["survived"],
-        parsed_data["data"]["probability"],
-    )
+    parsed_data: tuple[str, ...] = parse_data(data)
+    await conn.execute(QUERY, parsed_data)
 
-    await conn.execute(QUERY, record)
     await conn.commit()
 
 
@@ -481,7 +509,9 @@ async def insert_dlq_data_async(
     try:
         async with pool.connection() as conn:
             async with transaction(conn):
-                await conn.execute(DLQ_QUERY, data)
+                data: dict[str, Any] = PersonSchema.model_validate_json(data).model_dump()  # type: ignore
+                result: tuple[str, ...] = _extract_dlq_data(data)  # type: ignore
+                await conn.execute(DLQ_QUERY, result)
     except aiosqlite.Error as e:
         logger.error(f"Database error when inserting data: {e}")
         raise
@@ -517,18 +547,7 @@ async def insert_batch_dlq_data_async(
                 else:
                     results_list = data.model_dump()["persons"]
                 results_list: list[tuple[Any, ...]] = [  # type: ignore
-                    (
-                        row["id"],
-                        row["sex"],
-                        row["age"],
-                        row["pclass"],
-                        row["sibsp"],
-                        row["parch"],
-                        row["fare"],
-                        row["embarked"],
-                        row["timestamp"],
-                    )
-                    for row in results_list
+                    _extract_dlq_data(row) for row in results_list
                 ]
 
                 await conn.executemany(DLQ_QUERY, results_list)

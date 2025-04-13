@@ -207,7 +207,6 @@ async def process_queue(batch_mode: bool = False) -> None:
         If True, process batch messages, by default False
     """
     model_dict_fp: Path = PACKAGE_PATH / "models/model.pkl"
-
     model_dict: dict[str, Any] = await load_model_dict(filepath=model_dict_fp)
 
     # Processed message counter and event completion flag
@@ -236,17 +235,22 @@ async def process_queue(batch_mode: bool = False) -> None:
         """
         nonlocal processed_messages
 
-        if batch_mode:
-            processed_messages += await batch_prediction_callback(pool, message, model_dict)
-        else:
-            await single_prediction_callback(pool, message, model_dict)
-            processed_messages += 1
+        try:
+            if batch_mode:
+                processed_messages += await batch_prediction_callback(pool, message, model_dict)
+            else:
+                await single_prediction_callback(pool, message, model_dict)
+                processed_messages += 1
 
-        # Check if all messages have been processed (empty queue)
-        # set the event flag to signal completion
-        if await is_queue_empty(processed_messages):
-            processing_completed.set()
-            logger.info(f"All messages processed. Total messages: {processed_messages}")
+            # Check if all messages have been processed (empty queue)
+            # set the event flag to signal completion
+            if await is_queue_empty(processed_messages):
+                processing_completed.set()
+                logger.info(f"All messages processed. Total messages: {processed_messages}")
+
+        except Exception as e:
+            logger.error(f"Error making prediction(s): {e}")
+            raise
 
     async def dlq_wrapper(message: dict[str, Any]) -> None:
         """Process messages from the dead letter queue.
@@ -256,10 +260,14 @@ async def process_queue(batch_mode: bool = False) -> None:
         message : dict[str, Any]
             The message from DLQ to process
         """
-        if batch_mode:
-            await batch_dlq_callback(pool, message)
-        else:
-            await dlq_callback(pool, message)
+        try:
+            if batch_mode:
+                await batch_dlq_callback(pool, message)
+            else:
+                await dlq_callback(pool, message)
+
+        except Exception as e:
+            logger.error(f"Error processing DLQ message(s): {e}")
 
     await rabbitmq_manager.connect()
     await rabbitmq_manager.consume(callback=prediction_wrapper)  # type: ignore

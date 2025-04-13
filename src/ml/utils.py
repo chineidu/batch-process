@@ -43,7 +43,7 @@ def _get_prediction(
     list[dict[str, Any]]
         List of dictionaries containing predictions and features.
     """
-    data: pl.DataFrame = record_to_dataframe(record)
+    data: pl.DataFrame = record_to_dataframe(record)  # type: ignore
     # return data
     features: npt.NDArray[np.float64] = model_dict["processor"].transform(data)
     data_features: pl.DataFrame = pl.DataFrame(
