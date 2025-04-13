@@ -31,11 +31,11 @@ spec:
         - name: RABBITMQ_HOST
           value: {{ .Release.Name }}-rabbitmq
         envFrom:
-        - configMapRef:
+        - configMapRef:  # Load environment variables from the ConfigMap
             name: {{ .Release.Name }}-config
         volumeMounts:
         - name: db-volume
           mountPath: /app/db
-      # volumes:
-      # - name: db-volume
-      #   emptyDir: {}  # For dev purposes; use PVC for production
+      volumes:
+      - name: db-volume
+        emptyDir: {}  # For dev purposes; use PVC for production

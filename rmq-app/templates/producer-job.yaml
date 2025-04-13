@@ -1,0 +1,40 @@
+# K8s Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-producer-job
+spec:
+  backoffLimit: 6  # Number of retries before marking the job as failed
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-producer-job
+    spec:
+      initContainers:
+        - name: wait-for-rabbitmq
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nc -z {{ .Release.Name }}-rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;']
+      containers:
+      - name: producer
+        image: {{ .Values.producer.image }}
+        imagePullPolicy: {{ .Values.producer.imagePullPolicy }}
+        resources:
+          limits:
+            cpu: {{ .Values.producer.resources.limits.cpu }}
+            memory: {{ .Values.producer.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.producer.resources.requests.cpu }}
+            memory: {{ .Values.producer.resources.requests.memory }}
+        env:
+        - name: RABBITMQ_HOST
+          value: {{ .Release.Name }}-rabbitmq
+        envFrom:
+        - configMapRef:  # Load environment variables from the ConfigMap
+            name: {{ .Release.Name }}-config
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+      volumes:
+      - name: data-volume
+        emptyDir: {}  # For dev purposes; use PVC for production
+      restartPolicy: OnFailure  # Jobs need this setting
