@@ -140,7 +140,7 @@ class RabbitMQManager:
             logger.error(f" [x] Error closing {self.__class__.__name__}: {e}")
 
     async def _publish(self, message: PersonSchema | MultiPersonsSchema) -> Message:
-        message_data: bytes = message.model_dump_json(by_alias=True).encode("utf-8")
+        message_data: bytes = message.model_dump_json(by_alias=True).encode("utf-8")  # type: ignore
         rmq_message: Message = Message(
             body=message_data,
             content_type="application/json",

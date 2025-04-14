@@ -62,11 +62,11 @@ def parse_data(data: str | ModelOutput) -> tuple[Any, ...]:
         raise ValueError("Invalid data type. Expected str or ModelOutput.")
 
     if isinstance(data, str):
-        formated_data: dict[str, Any] = ModelOutput.model_validate_json(data).model_dump(
+        formated_data: dict[str, Any] = ModelOutput.model_validate_json(data).model_dump(  # type: ignore
             by_alias=True
         )
     elif isinstance(data, ModelOutput):
-        formated_data = data.model_dump(by_alias=True)
+        formated_data = data.model_dump(by_alias=True)  # type: ignore
 
     formated_data: tuple[str, ...] = (  # type: ignore
         formated_data["status"],
@@ -541,11 +541,11 @@ async def insert_batch_dlq_data_async(
         async with pool.connection() as conn:
             async with transaction(conn):
                 if isinstance(data, str):
-                    results_list: list[dict[str, Any]] = MultiPersonsSchema.model_validate_json(
+                    results_list: list[dict[str, Any]] = MultiPersonsSchema.model_validate_json(  # type: ignore
                         data
                     ).model_dump()["persons"]
                 else:
-                    results_list = data.model_dump()["persons"]
+                    results_list = data.model_dump()["persons"]  # type: ignore
                 results_list: list[tuple[Any, ...]] = [  # type: ignore
                     _extract_dlq_data(row) for row in results_list
                 ]

@@ -6,6 +6,10 @@
 # Use bash with strict error handling
 .SHELLFLAGS := -ec
 
+# Path to virtual environment
+VENV := .venv
+ACTIVATE := . $(VENV)/bin/activate
+
 # Default target when just running "make"
 all: format-fix
 
@@ -32,28 +36,28 @@ help:
 # Type checking with MyPy
 type-check:
 	@echo "Running type checking with MyPy..."
-	@python -m mypy .
+	@bash -c "$(ACTIVATE) && python -m mypy ."
 	@echo "Type checking completed."
 
 # Format code with Ruff
 format:
 	@echo "Formatting code with Ruff..."
-	@python -m ruff format .
+	@bash -c "$(ACTIVATE) && python -m ruff format ."
 
 # Lint code with Ruff (no fixing)
 lint:
 	@echo "Linting code with Ruff..."
-	@python -m ruff check .
+	@bash -c "$(ACTIVATE) && python -m ruff check ."
 
 # Lint code with Ruff and fix issues
 lint-fix:
 	@echo "Linting code with Ruff and applying fixes..."
-	@python -m ruff check --fix .
+	@bash -c "$(ACTIVATE) && python -m ruff check --fix ."
 
 # Lint code with Ruff (verbose output)
 lint-verbose:
 	@echo "Running verbose linting..."
-	@python -m ruff check --verbose .
+	@bash -c "$(ACTIVATE) && python -m ruff check --verbose ."
 
 # Format and fix in a single command
 format-fix: type-check format lint-fix
@@ -61,8 +65,8 @@ format-fix: type-check format lint-fix
 # Run format and lint without fixing (good for CI)
 check:
 	@echo "Running full code check (format and lint)..."
-	@python -m ruff format --check .
-	@python -m ruff check .
+	@bash -c "$(ACTIVATE) && python -m ruff format --check ."
+	@bash -c "$(ACTIVATE) && python -m ruff check ."
 
 # Complete CI check with type checking
 ci-check: type-check check
@@ -82,6 +86,7 @@ compose-watch:
 	@echo "Watch for changes and rebuild Docker Compose development environment..."
 	docker compose watch
 	@echo "Docker Compose development environment started."
+
 compose-down:
 	@echo "Stopping Docker Compose development environment..."
 	docker compose down

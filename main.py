@@ -96,7 +96,7 @@ async def single_prediction_callback(
         record,
         model_dict,  # type: ignore
     )
-    result_dict: str = result.model_dump_json(by_alias=True)
+    result_dict: str = result.model_dump_json(by_alias=True)  # type: ignore
     await insert_data_async(pool=pool, data=result_dict, logger=logger)
     logger.info(f"Inserted data with id {record.id!r} into database.")
     return
@@ -127,8 +127,8 @@ async def batch_prediction_callback(
         record,
         model_dict,  # type: ignore
     )
-    result_string: str = result.model_dump_json(by_alias=True)
-    for row in (results_list := MultiPredOutput.model_validate_json(result_string).outputs):
+    result_string: str = result.model_dump_json(by_alias=True)  # type: ignore
+    for row in (results_list := MultiPredOutput.model_validate_json(result_string).outputs):  # type: ignore
         await insert_data_async(pool=pool, data=row, logger=logger)
     logger.info("Inserted batch data into database.")
     return len(results_list)
@@ -146,7 +146,7 @@ async def dlq_callback(pool: DatabaseConnectionPool, message: dict[str, Any]) ->
         The message from DLQ to process
     """
     record: PersonSchema = PersonSchema(**message)
-    await insert_dlq_data_async(pool=pool, data=record.model_dump_json(), logger=logger)
+    await insert_dlq_data_async(pool=pool, data=record.model_dump_json(), logger=logger)  # type: ignore
     logger.info(f"Inserted DLQ data with id {record.id!r} into database.")
     return
 
