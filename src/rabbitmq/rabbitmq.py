@@ -38,8 +38,11 @@ class RabbitMQManager:
     def __init__(self) -> None:
         if not RabbitMQManager._initialized:
             self.connection: AbstractRobustConnection | None = None
-            self.channel: AbstractChannel | None = None
-            self.direct_exchange: AbstractExchange | None = None
+            self.consumer_channel: AbstractChannel | None = None
+            self.producer_channel: AbstractChannel | None = None
+            self.consumer_direct_exchange: AbstractExchange | None = None
+            self.producer_direct_exchange: AbstractExchange | None = None
+            self.in_flow: int = 0
             self.process_id: int = os.getpid()
             logger.info(f" [+] Initializing {self.__class__.__name__} with PID: {self.process_id}")
             RabbitMQManager._initialized = True
@@ -82,17 +85,18 @@ class RabbitMQManager:
                 )
 
                 # Create channel and set QoS
-                self.channel = await self.connection.channel()
+                self.consumer_channel = await self.connection.channel()
+                self.producer_channel = await self.connection.channel()
                 # It prevents RMQ from sending more than one message to a consumer at a time.
-                await self.channel.set_qos(prefetch_count=1)
+                await self.consumer_channel.set_qos(prefetch_count=1)
 
                 # Declare the exchange and queue for dead letter
-                self.dl_exchange = await self.channel.declare_exchange(
+                self.dl_exchange = await self.consumer_channel.declare_exchange(
                     name=f"{app_settings.RABBITMQ_DIRECT_EXCHANGE}.dlx",
                     type=ExchangeType.DIRECT,
                     durable=True,
                 )
-                self.dl_queue: AbstractQueue = await self.channel.declare_queue(
+                self.dl_queue: AbstractQueue = await self.consumer_channel.declare_queue(
                     name=f"{app_settings.RABBITMQ_DIRECT_EXCHANGE}.dlq",
                     durable=True,
                 )
@@ -101,7 +105,12 @@ class RabbitMQManager:
                     self.dl_exchange, routing_key=app_settings.RABBITMQ_DIRECT_EXCHANGE
                 )
                 # Declare the exchange
-                self.direct_exchange = await self.channel.declare_exchange(
+                self.consumer_direct_exchange = await self.consumer_channel.declare_exchange(
+                    name=app_settings.RABBITMQ_DIRECT_EXCHANGE,
+                    type=ExchangeType.DIRECT,
+                    durable=True,
+                )
+                self.producer_direct_exchange = await self.producer_channel.declare_exchange(
                     name=app_settings.RABBITMQ_DIRECT_EXCHANGE,
                     type=ExchangeType.DIRECT,
                     durable=True,
@@ -129,8 +138,11 @@ class RabbitMQManager:
     async def close(self) -> None:
         """Close the RabbitMQ connection."""
         try:
-            if self.channel and not self.channel.is_closed:
-                await self.channel.close()
+            if self.consumer_channel and not self.consumer_channel.is_closed:
+                await self.consumer_channel.close()
+
+            if self.producer_channel and not self.producer_channel.is_closed:
+                await self.producer_channel.close()
 
             if self.connection and not self.connection.is_closed:
                 await self.connection.close()
@@ -163,7 +175,7 @@ class RabbitMQManager:
         """
         try:
             rmq_message: Message = await self._publish(message)
-            await self.direct_exchange.publish(  # type: ignore
+            await self.producer_direct_exchange.publish(  # type: ignore
                 message=rmq_message,
                 routing_key=app_settings.RABBITMQ_DIRECT_EXCHANGE,
             )
@@ -189,7 +201,7 @@ class RabbitMQManager:
         """
         try:
             rmq_message: Message = await self._publish(message)
-            await self.direct_exchange.publish(  # type: ignore
+            await self.producer_direct_exchange.publish(  # type: ignore
                 message=rmq_message,
                 routing_key=app_settings.RABBITMQ_DIRECT_EXCHANGE,
             )
@@ -223,14 +235,23 @@ class RabbitMQManager:
             with requueue=False, the message is not requeued but is routed to
             the dead letter exchange.
             """
-            async with message.process(requeue=False):  # type: ignore
-                # Msg will be ACKed if the callback function does not raise an exception.
-                # If the callback raises an exception, it be be routed to the DL exchange
-                message_data: dict[str, Any] = json.loads(message.body.decode("utf-8"))  # type: ignore
-                await callback(message_data)  # type: ignore
+            self.in_flow += 1
+            async with asyncio.Lock():
+                try:
+                    async with message.process(requeue=False):  # type: ignore
+                        # Msg will be ACKed if the callback function does not raise an exception.
+                        # If the callback raises an exception, it be be routed to the DL exchange
+                        message_data: dict[str, Any] = json.loads(message.body.decode("utf-8"))  # type: ignore
+                        await callback(message_data)  # type: ignore
+
+                except Exception as e:
+                    logger.error(f" [x] Error processing message: {e}")
+
+                finally:
+                    self.in_flow -= 1
 
         try:
-            queue: AbstractQueue = await self.channel.declare_queue(  # type: ignore
+            queue: AbstractQueue = await self.consumer_channel.declare_queue(  # type: ignore
                 name=app_settings.RABBITMQ_DIRECT_EXCHANGE,
                 durable=True,
                 arguments={
@@ -239,7 +260,7 @@ class RabbitMQManager:
                 },
             )
             await queue.bind(
-                self.direct_exchange,  # type: ignore
+                self.consumer_direct_exchange,  # type: ignore
                 routing_key=app_settings.RABBITMQ_DIRECT_EXCHANGE,  # type: ignore
             )
             await queue.consume(on_message_callback)  # type: ignore
@@ -285,6 +306,36 @@ class RabbitMQManager:
             return True
         except Exception as e:
             logger.error(f" [x] Error consuming DLQ messages: {e}")
+            return False
+
+    async def is_queue_empty(self, processed_messages: int) -> bool:
+        """
+        Check if the RabbitMQ queue is empty.
+
+        Parameters
+        ----------
+        processed_messages : int
+            The number of messages processed.
+
+        Returns
+        -------
+        bool
+        """
+        try:
+            # Check if the queue exists
+            queue: AbstractQueue = await rabbitmq_manager.consumer_channel.declare_queue(  # type: ignore
+                name=app_settings.RABBITMQ_DIRECT_EXCHANGE,
+                durable=True,
+                passive=True,  # Set to True to check if the queue exists
+            )
+            return (
+                processed_messages > 0
+                and self.in_flow == 0
+                and queue.declaration_result.message_count == 0
+            )
+
+        except Exception as e:
+            logger.error(f"Error checking queue status: {e}")
             return False
 
 

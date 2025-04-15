@@ -9,9 +9,8 @@ from typing import Any, Callable
 
 import anyio
 import joblib
-from aio_pika.abc import AbstractQueue
 
-from config import app_config, app_settings
+from config import app_config
 from schemas import ModelOutput, MultiPersonsSchema, MultiPredOutput, PersonSchema
 from src import PACKAGE_PATH, create_logger
 from src.ml.utils import get_batch_prediction, get_prediction
@@ -26,6 +25,8 @@ from src.utils import (
 )
 
 logger = create_logger(name="RMQ_consumer")
+# Track which messages are currently being processed to avoid duplication
+in_progress_messages: set[str] = set()
 
 
 def async_timer(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -91,6 +92,11 @@ async def single_prediction_callback(
         The model dictionary.
     """
     record: PersonSchema = PersonSchema(**message)
+    if record.id in in_progress_messages:
+        logger.info(f"Message with id {record.id!r} is already being processed.")
+        return
+
+    in_progress_messages.add(record.id)  # type: ignore
     result: ModelOutput = await asyncio.to_thread(
         get_prediction,  # type: ignore
         record,
@@ -99,6 +105,10 @@ async def single_prediction_callback(
     result_dict: str = result.model_dump_json(by_alias=True)  # type: ignore
     await insert_data_async(pool=pool, data=result_dict, logger=logger)
     logger.info(f"Inserted data with id {record.id!r} into database.")
+
+    # Remove the message
+    in_progress_messages.remove(record.id)  # type: ignore
+
     return
 
 
@@ -168,35 +178,6 @@ async def batch_dlq_callback(pool: DatabaseConnectionPool, message: dict[str, An
     return
 
 
-async def is_queue_empty(processed_messages: int) -> bool:
-    """
-    Check if the RabbitMQ queue is empty.
-
-    Parameters
-    ----------
-    processed_messages : int
-        The number of messages processed.
-
-    Returns
-    -------
-    bool
-        True if queue is empty and at least one message has been processed,
-        False otherwise or in case of error.
-    """
-    try:
-        # Check if the queue exists
-        queue: AbstractQueue = await rabbitmq_manager.channel.declare_queue(  # type: ignore
-            name=app_settings.RABBITMQ_DIRECT_EXCHANGE,
-            durable=True,
-            passive=True,  # Set to True to check if the queue exists
-        )
-        return processed_messages > 0 and queue.declaration_result.message_count == 0
-
-    except Exception as e:
-        logger.error(f"Error checking queue status: {e}")
-        return False
-
-
 @async_timer
 async def process_queue(batch_mode: bool = False) -> None:
     """Process incoming messages and make predictions.
@@ -242,12 +223,6 @@ async def process_queue(batch_mode: bool = False) -> None:
                 await single_prediction_callback(pool, message, model_dict)
                 processed_messages += 1
 
-            # Check if all messages have been processed (empty queue)
-            # set the event flag to signal completion
-            if await is_queue_empty(processed_messages):
-                processing_completed.set()
-                logger.info(f"All messages processed. Total messages: {processed_messages}")
-
         except Exception as e:
             logger.error(f"Error making prediction(s): {e}")
             raise
@@ -274,14 +249,21 @@ async def process_queue(batch_mode: bool = False) -> None:
     await rabbitmq_manager.consume_dlq(callback=dlq_wrapper)  # type: ignore
 
     try:
-        while not processing_completed.is_set():
-            try:
-                await asyncio.wait_for(processing_completed.wait(), timeout=5)
-            except asyncio.TimeoutError:
-                if await is_queue_empty(processed_messages):
-                    logger.info(f"All messages processed after {processed_messages}. Exiting...")
-                    await asyncio.sleep(2)  # Add delay for graceful shutdown
-                    break
+        while True:
+            if not await rabbitmq_manager.is_queue_empty(processed_messages):
+                # Check every N seconds
+                await asyncio.sleep(2)
+
+            else:
+                processing_completed.set()
+                logger.info(f"All messages processed. Total messages: {processed_messages}")
+                logger.info("Gracefully shutting down...")
+                await asyncio.sleep(2)  # Add delay for graceful shutdown
+                break
+
+    except asyncio.CancelledError:
+        logger.warning("Message processing was cancelled")
+
     finally:
         # Close connection
         await rabbitmq_manager.close()

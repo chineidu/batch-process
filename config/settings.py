@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     RABBITMQ_DEFAULT_USER: str
     RABBITMQ_DEFAULT_PASS: SecretStr
     RABBITMQ_EXPIRATION_MS: int = 3_600_000  # 60 minutes
+    RABBITMQ_HEARTBEAT: int = 600
     RABBITMQ_DIRECT_EXCHANGE: str = "person_exchange"
 
     @property
@@ -31,7 +32,7 @@ class Settings(BaseSettings):
         """
         return (
             f"amqp://{self.RABBITMQ_DEFAULT_USER}:{self.RABBITMQ_DEFAULT_PASS.get_secret_value()}"
-            f"@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/"
+            f"@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/?heartbeat={self.RABBITMQ_HEARTBEAT}"
         )
 
 
