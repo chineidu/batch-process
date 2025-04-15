@@ -73,12 +73,7 @@ async def _get_batch_data() -> list[dict[str, Any]]:
 
 
 async def sequential_publish() -> None:
-    """Publish messages to RabbitMQ from batch data.
-
-    Returns
-    -------
-    None
-    """
+    """Publish messages to RabbitMQ from batch data."""
     batch_data: list[dict[str, Any]] = await _get_batch_data()
 
     for data in (
@@ -101,10 +96,6 @@ async def batch_publish_messages(batch_size: int = 50) -> None:
     ----------
     batch_size : int, optional
         The size of each batch to process, by default 50.
-
-    Returns
-    -------
-    None
     """
     # Fetch the batch data
     batch_data: list[dict[str, Any]] = await _get_batch_data()
