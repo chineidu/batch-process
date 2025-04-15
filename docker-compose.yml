@@ -9,6 +9,9 @@ services:
       - 15672:15672
     volumes: # Persist the data volume
       - rabbitmq-data:/var/lib/rabbitmq
+      # Volume mapping for the config file
+      # It contains the RabbitMQ configuration
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
       interval: 30s
