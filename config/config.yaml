@@ -32,3 +32,32 @@ app_config:
 
     artifacts:
       model_path: models/model.pkl
+
+  celery:
+    broker_url: pyamqp://guest@localhost:5672//  # Add this to your .env
+    result_backend: redis://localhost:6379
+
+    task_configuration:
+      task_serializer: json
+      result_serializer: json
+      timezone: UTC
+      enable_utc: true
+
+    task_routes:
+      app.tasks.email_tasks.*: {queue: email}
+      app.tasks.dataprocessing.*: {queue: data}
+      app.tasks.periodic_tasks.*: {queue: periodic}
+
+    worker_configuration:
+      worker_prefetch_multiplier: 1
+      task_acks_late: true
+      worker_max_tasks_per_child: 1000
+
+    beat_configuration:
+      beat_scedule:
+        cleanup-old-records:
+        task: app.tasks.periodic_tasks.cleanup_old_records
+        schedule: 3600
+      health-check:
+        task: app.tasks.periodic_tasks.health_check
+        schedule: 300
