@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from omegaconf import DictConfig, OmegaConf
 from pydantic import Field
@@ -72,56 +71,69 @@ class BatchData(BaseSchema):
     batch_size: int = Field(description="Batch size")
 
 
-class Celery(BaseSchema):
-    """Celery configuration class."""
-
-    broker_url: str = Field(description="Broker URL")
-    result_backend: str = Field(description="Result backend")
-
-    task_configuration: TaskConfiguration = Field(description="Task configuration")
-    task_routes: dict[str, Any] = Field(description="Task routes")
-    worker_configuration: WorkerConfiguration = Field(description="Worker configuration")
-    beat_configuration: BeatConfiguration = Field(description="Beat configuration")
+class QueueConfig(BaseSchema):
+    queue: str
 
 
-class TaskConfiguration(BaseSchema):
+class TaskConfig(BaseSchema):
     """Task configuration class."""
 
     task_serializer: str
     result_serializer: str
     timezone: str
-    enable_utc: str
+    enable_utc: bool
 
 
-class WorkerConfiguration(BaseSchema):
+class WorkerConfig(BaseSchema):
+    """Worker configuration class."""
+
     worker_prefetch_multiplier: int
     task_acks_late: bool
     worker_max_tasks_per_child: int
 
 
-class BeatConfiguration(BaseSchema):
-    beat_schedule: dict[str, Any]
-    health_check: dict[str, Any]
+class TaskAndSchedule(BaseSchema):
+    """Task and schedule class."""
+
+    task: str
+    schedule: int
+
+
+class BeatSchedule(BaseSchema):
+    """Beat schedule class."""
+
+    cleanup_old_records: TaskAndSchedule
+
+
+class BeatConfig(BaseSchema):
+    """Beat configuration class."""
+
+    beat_schedule: BeatSchedule
+    health_check: TaskAndSchedule
+
+
+class CeleryConfig(BaseSchema):
+    """Celery configuration class."""
+
+    broker_url: str = Field(description="Broker URL")
+    result_backend: str = Field(description="Result backend")
+
+    task_config: TaskConfig = Field(description="Task configuration")
+    task_routes: dict[str, QueueConfig] = Field(description="Dictionary of task routes")
+    worker_config: WorkerConfig = Field(description="Worker configuration")
+    beat_config: BeatConfig = Field(description="Beat configuration")
 
 
 class AppConfig(BaseSchema):
-    """Application configuration class.
-
-    Attributes
-    ----------
-    data : Data
-        Data configuration
-    db : DB
-        Database configuration
-    model : Model
-        Model configuration
-    """
+    """Application configuration class."""
 
     data: Data = Field(description="Data configuration")
     db: DB = Field(description="Database configuration")
     model: Model = Field(description="Model configuration")
+    celery_config: CeleryConfig = Field(description="Celery configuration")
 
 
 config_path: Path = PACKAGE_PATH / "config/config.yaml"
 config: DictConfig = OmegaConf.load(config_path).app_config
+
 app_config: AppConfig = AppConfig(**config)  # type: ignore
