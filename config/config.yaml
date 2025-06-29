@@ -19,7 +19,8 @@ app_config:
       - embarked
 
   db:
-    db_path: db/results.db
+    # db_path: db/results.db
+    db_path: sqlite:///results.db
     max_connections: 5
 
   model:
