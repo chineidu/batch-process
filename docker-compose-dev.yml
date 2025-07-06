@@ -1,0 +1,74 @@
+services:
+  local-rabbitmq: # 1st service
+    image: rabbitmq:4.0-management
+    container_name: local-rabbitmq # Also used as hostname
+    env_file: # Location of file(s) containing the env vars. Only accessed by the container.
+      - .env
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes: # Persist the data volume
+      - rabbitmq-data:/var/lib/rabbitmq
+      # Volume mapping for the config file
+      # It contains the RabbitMQ configuration
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  postgres: # 2nd service
+    image: postgres:17.5-bookworm
+    # Remove name to allow Docker to automatically generate a name
+    # when you have more than one replica
+    # container_name: local-rmq-worker
+    container_name: backend
+    env_file:
+      - .env
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Bind mount for the data folder
+    depends_on:
+      local-rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pg_isready -U user -d celery_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # producer: # 3rd service
+  #   image: redis:8.0.2
+  #   container_name: local-rmq-producer
+  #   environment:
+  #     - RABBITMQ_HOST=local-rabbitmq
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - ./data:/app/data  # Bind mount for the data folder
+  #   cpus: "0.5"
+  #   develop:
+  #   # Create a `watch` configuration to update the app
+  #     watch:
+  #       - action: sync
+  #         path: ./
+  #         target: /app
+  #         # Folders and files to ignore
+  #         ignore:
+  #           - .venv
+  #           - "**/**/*.ipynb"
+  #       # Rebuild image if any of these files change
+  #       - action: rebuild
+  #         path: ./pyproject.toml
+  #   depends_on:
+  #     local-rabbitmq:
+  #       condition: service_healthy
+
+
+# Named volumes ONLY!
+# Persist data outside the lifecycle of the container.
+volumes:
+  rabbitmq-data:
+  postgres_data:

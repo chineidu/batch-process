@@ -1,5 +1,13 @@
 from celery import Celery
 from config import app_config
+from config.settings import refresh_settings
+
+settings = refresh_settings()
+
+DATABASE_URL = (
+    f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD.get_secret_value()}"
+    f"@localhost:5432/{settings.POSTGRES_DB}"
+)
 
 
 def create_celery_app() -> Celery:
@@ -18,7 +26,7 @@ def create_celery_app() -> Celery:
     # Configuration
     celery.conf.update(
         broker_url=app_config.celery_config.broker_url,
-        result_backend=app_config.celery_config.result_backend,
+        result_backend=DATABASE_URL,
         task_serializer=app_config.celery_config.task_config.task_serializer,
         result_serializer=app_config.celery_config.task_config.result_serializer,
         timezone=app_config.celery_config.task_config.timezone,
@@ -37,7 +45,7 @@ def create_celery_app() -> Celery:
     celery.autodiscover_tasks([
         "app.tasks.email_tasks",
         "app.tasks.data_processing",
-        "app.tasks.periodic_tasks",
+        # "app.tasks.periodic_tasks",
     ])
 
     return celery

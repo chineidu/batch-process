@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     RABBITMQ_HEARTBEAT: int = 600
     RABBITMQ_DIRECT_EXCHANGE: str = "person_exchange"
 
+    # Database settings
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: SecretStr
+    POSTGRES_DB: str
+
     @property
     def rabbitmq_url(self) -> str:
         """

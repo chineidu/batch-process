@@ -88,3 +88,21 @@ class EmailSchema(BaseModel):
     def to_data_model_dict(self) -> dict[str, Any]:
         """Converts the task schema to a dictionary that can be inserted into the database."""
         return json.loads(self.model_dump_json())
+
+
+class DataProcessingSchema(BaseModel):
+    """Data schema for data processing job."""
+
+    job_name: str = Field(description="The name of the ejob")
+    input_data: str = Field(description="The input data")
+    output_data: str = Field(description="The output data")
+    processing_time: float = Field(description="The processing time")
+    status: Literal["failed", "pending", "processing", "completed"] = Field(
+        default="pending", description="Email status"
+    )
+    created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
+    completed_at: str | None = Field(default=None, description="Completion time")
+
+    def to_data_model_dict(self) -> dict[str, Any]:
+        """Converts the task schema to a dictionary that can be inserted into the database."""
+        return json.loads(self.model_dump_json())
