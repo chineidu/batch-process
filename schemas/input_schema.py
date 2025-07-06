@@ -1,5 +1,7 @@
+import json
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
+from uuid import uuid4
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field  # type: ignore
 from pydantic.alias_generators import to_camel
@@ -53,3 +55,35 @@ class MultiPersonsSchema(BaseSchema):
     """Schema for multiple people."""
 
     persons: list[PersonSchema] = Field(description="List of people.")
+
+
+class TaskSchema(BaseModel):
+    """Data schema for task results."""
+
+    task_id: str = Field(default_factory=lambda: uuid4().hex, description="Task id")
+    task_name: str = Field(description="Task id")
+    status: Literal["pending", "completed"] = Field(default="pending", description="Task status")
+    result: dict[str, Any] = Field(default_factory=dict, description="Task result")
+    error_message: str = Field(default="", description="Error message")
+    created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
+    completed_at: str | None = Field(default=None, description="Completion time")
+
+    def to_data_model_dict(self) -> dict[str, Any]:
+        """Converts the task schema to a dictionary that can be inserted into the database."""
+        return json.loads(self.model_dump_json())
+
+
+class TaskSchema(BaseModel):
+    """Data schema for task results."""
+
+    task_id: str = Field(default_factory=lambda: uuid4().hex, description="Task id")
+    task_name: str = Field(description="Task id")
+    status: Literal["pending", "completed"] = Field(default="pending", description="Task status")
+    result: dict[str, Any] = Field(default_factory=dict, description="Task result")
+    error_message: str = Field(default="", description="Error message")
+    created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
+    completed_at: str | None = Field(default=None, description="Completion time")
+
+    def to_data_model_dict(self) -> dict[str, Any]:
+        """Converts the task schema to a dictionary that can be inserted into the database."""
+        return json.loads(self.model_dump_json())

@@ -8,7 +8,6 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from config import app_config
-from schemas import ModelOutput
 
 engine: Engine = create_engine(app_config.db.db_path, echo=False)
 T = TypeVar("T", bound="BaseModel")
@@ -192,35 +191,28 @@ def add_record_to_db(data: dict[str, Any], schema: Type[T], data_model: Type[D])
     return {}
 
 
-def bulk_insert_records(data_list: list[ModelOutput] | list[dict[str, Any]]) -> None:
+def bulk_insert_records(data: list[dict[str, Any]], schema: Type[T], data_model: Type[D]) -> None:
     """
-    High-performance bulk insert using SQLAlchemy Core.
+    Bulk insert multiple records into the database using the provided data, schema, and data model.
 
     Parameters
     ----------
-    data_list : list[ModelOutput] | list[dict[str, Any]]
-        List of EntitySchemaResponse objects or dictionaries containing data to be inserted.
+    data : list[dict[str, Any]]
+        List of dictionaries containing the data to be added to the database.
+    schema : Type[T]
+        Type of the schema class used for data validation and transformation.
+    data_model : Type[D]
+        Type of the database model class where the records will be stored.
 
     Returns
     -------
     None
-        This function performs database operations without returning any value.
-
-    Raises
-    ------
-    Exception
-        Any database-related exception that occurs during bulk insert operation.
     """
-    if not data_list:
-        return
-
-    if not isinstance(data_list[0], ModelOutput):
-        data_list = [ModelOutput(**data) for data in data_list]  # type: ignore
-
-    records_data: list[dict[str, Any]] = [data.model_dump() for data in data_list]  # type: ignore
+    if isinstance(data, list):
+        data_list: list[dict[str, Any]] = [schema(**row).to_data_model_dict() for row in data]  # type: ignore
 
     with get_db_session() as db:
-        db.bulk_insert_mappings(NERData, records_data)  # type: ignore
+        db.bulk_insert_mappings(data_model, data_list)  # type: ignore
 
 
 def init_db() -> None:
