@@ -1,7 +1,8 @@
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Any, Generator, Optional
+from typing import Any, Generator, Type, TypeVar
 
+from pydantic import BaseModel
 from sqlalchemy import JSON, String, Text, create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
@@ -10,6 +11,8 @@ from config import app_config
 from schemas import ModelOutput
 
 engine: Engine = create_engine(app_config.db.db_path, echo=False)
+T = TypeVar("T", bound="BaseModel")
+D = TypeVar("D", bound="Base")
 
 
 class Base(DeclarativeBase):
@@ -23,8 +26,8 @@ class NERData(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     status: Mapped[str] = mapped_column(String(50))
     data: Mapped[dict[str, Any]] = mapped_column(JSON)
-    timestamp: Mapped[Optional[str]] = mapped_column("timestamp", default=datetime.now)
-    created_at: Mapped[Optional[str]] = mapped_column("createdAt", default=datetime.now)
+    timestamp: Mapped[str | None] = mapped_column("timestamp", default=datetime.now)
+    created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
 
     def __repr__(self) -> str:
         """
@@ -38,6 +41,16 @@ class NERData(Base):
             f"{self.__class__.__name__}(id={self.id!r}, status={self.status!r}, data={self.data!r})"
         )
 
+    def output_fields(self) -> list[str]:
+        """Get the output fields."""
+        return [
+            "id",
+            "status",
+            "data",
+            "timestamp",
+            "created_at",
+        ]
+
 
 class TaskResult(Base):
     """Data model for storing task results."""
@@ -49,8 +62,8 @@ class TaskResult(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending")
     result: Mapped[dict[str, Any]] = mapped_column(JSON)
     error_message: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[Optional[str]] = mapped_column("createdAt", default=datetime.now)
-    completed_at: Mapped[Optional[str]] = mapped_column("completedAt", default=datetime.now)
+    created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
+    completed_at: Mapped[str | None] = mapped_column("completedAt", default=datetime.now)
 
     def __repr__(self) -> str:
         """
@@ -65,6 +78,19 @@ class TaskResult(Base):
             f"status={self.status!r})"
         )
 
+    def output_fields(self) -> list[str]:
+        """Get the output fields."""
+        return [
+            "id",
+            "task_id",
+            "task_name",
+            "status",
+            "result",
+            "error_message",
+            "created_at",
+            "completed_at",
+        ]
+
 
 class EmailLog(Base):
     """Data model for storing email logs."""
@@ -74,8 +100,8 @@ class EmailLog(Base):
     recipient: Mapped[str] = mapped_column(String(50), index=True)
     subject: Mapped[str] = mapped_column(String(100))
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    sent_at: Mapped[Optional[str]] = mapped_column("sentAt", default=datetime.now)
-    created_at: Mapped[Optional[str]] = mapped_column("createdAt", default=datetime.now)
+    sent_at: Mapped[str | None] = mapped_column("sentAt", default=datetime.now)
+    created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
 
     def __repr__(self) -> str:
         """
@@ -89,6 +115,17 @@ class EmailLog(Base):
             f"{self.__class__.__name__}(recipient={self.recipient!r}, subject={self.subject!r}, "
             f"status={self.status!r})"
         )
+
+    def output_fields(self) -> list[str]:
+        """Get the output fields."""
+        return [
+            "id",
+            "recipient",
+            "subject",
+            "status",
+            "sent_at",
+            "created_at",
+        ]
 
 
 @contextmanager
@@ -123,36 +160,34 @@ def get_db_session() -> Generator[Session, None, None]:
         session.close()
 
 
-def add_record_to_db(data: ModelOutput | dict[str, Any]) -> dict[str, Any]:
+def add_record_to_db(data: dict[str, Any], schema: Type[T], data_model: Type[D]) -> dict[str, Any]:
     """
-    Add a new NER record to the database.
+    Add a record to the database using the provided data, schema, and data model.
 
     Parameters
     ----------
-    db : Session
-        SQLAlchemy database session.
-    data : ModelOutput | dict[str, Any]
-        Entity schema data containing NER information.
+    data : dict[str, Any]
+        Dictionary containing the data to be added to the database.
+    schema : Type[T]
+        Type of the schema class used for data validation and transformation.
+    data_model : Type[D]
+        Type of the database model class where the record will be stored.
 
     Returns
     -------
-    dict[str, Any]:
-        The newly created and persisted NER record.
+    dict[str, Any]
+        Dictionary containing the record's fields after being added to the database.
+        Returns an empty dictionary if the operation fails.
+
     """
-    if not isinstance(data, ModelOutput):
-        data = ModelOutput(**data)
+    if isinstance(data, dict):
+        data_dict: dict[str, Any] = schema(**data).to_data_model_dict()  # type: ignore
     with get_db_session() as db:
-        record: NERData = NERData(**data.model_dump())
+        record = data_model(**data_dict)
         db.add(record)
         db.flush()
 
-        return {
-            "id": record.id,
-            "status": record.status,
-            "data": record.data,
-            "timestamp": record.timestamp,
-            "created_at": record.created_at,
-        }
+        return {key: getattr(record, key) for key in record.output_fields()}  # type: ignore
 
     return {}
 
