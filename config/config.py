@@ -112,6 +112,14 @@ class BeatConfig(BaseSchema):
     health_check: TaskAndSchedule
 
 
+class OtherConfig(BaseSchema):
+    """Other configuration class."""
+
+    result_expires: int
+    task_compression: str
+    result_compression: str
+
+
 class CeleryConfig(BaseSchema):
     """Celery configuration class."""
 
@@ -122,6 +130,7 @@ class CeleryConfig(BaseSchema):
     task_routes: dict[str, QueueConfig] = Field(description="Dictionary of task routes")
     worker_config: WorkerConfig = Field(description="Worker configuration")
     beat_config: BeatConfig = Field(description="Beat configuration")
+    other_config: OtherConfig = Field(description="Other configuration")
 
 
 class AppConfig(BaseSchema):

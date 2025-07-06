@@ -73,16 +73,16 @@ class TaskSchema(BaseModel):
         return json.loads(self.model_dump_json())
 
 
-class TaskSchema(BaseModel):
-    """Data schema for task results."""
+class EmailSchema(BaseModel):
+    """Data schema for email data."""
 
-    task_id: str = Field(default_factory=lambda: uuid4().hex, description="Task id")
-    task_name: str = Field(description="Task id")
-    status: Literal["pending", "completed"] = Field(default="pending", description="Task status")
-    result: dict[str, Any] = Field(default_factory=dict, description="Task result")
-    error_message: str = Field(default="", description="Error message")
+    recipient: str = Field(description="The recipient")
+    subject: str = Field(description="Task email subject")
+    status: Literal["failed", "pending", "processing", "sent"] = Field(
+        default="pending", description="Task status"
+    )
     created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
-    completed_at: str | None = Field(default=None, description="Completion time")
+    sent_at: str | None = Field(default=None, description="Time sent")
 
     def to_data_model_dict(self) -> dict[str, Any]:
         """Converts the task schema to a dictionary that can be inserted into the database."""

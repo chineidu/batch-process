@@ -60,3 +60,8 @@ app_config:
       health_check:
         task: app.tasks.periodic_tasks.health_check
         schedule: 300
+
+    other_config:
+      result_expires: 3600
+      task_compression: gzip
+      result_compression: gzip
