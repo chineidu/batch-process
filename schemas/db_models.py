@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Generator, Optional
 
-from sqlalchemy import JSON, String, create_engine
+from sqlalchemy import JSON, String, Text, create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
@@ -17,9 +17,7 @@ class Base(DeclarativeBase):
 
 
 class NERData(Base):
-    """
-    Named Entity Recognition (NER) data model for storing extracted entities.
-    """
+    """Data model for storing Named Entity Recognition (NER) data."""
 
     __tablename__: str = "ner_data"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -35,9 +33,62 @@ class NERData(Base):
         Returns
         -------
         str
-            A string representation of the NERData object.
         """
-        return f"NERData(id={self.id!r}, status={self.status!r}, data={self.data!r})"
+        return (
+            f"{self.__class__.__name__}(id={self.id!r}, status={self.status!r}, data={self.data!r})"
+        )
+
+
+class TaskResult(Base):
+    """Data model for storing task results."""
+
+    __tablename__: str = "task_results"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    task_name: Mapped[str] = mapped_column(String(50), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    result: Mapped[dict[str, Any]] = mapped_column(JSON)
+    error_message: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[Optional[str]] = mapped_column("createdAt", default=datetime.now)
+    completed_at: Mapped[Optional[str]] = mapped_column("completedAt", default=datetime.now)
+
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of the NERData object.
+
+        Returns
+        -------
+        str
+        """
+        return (
+            f"{self.__class__.__name__}(task_id={self.task_id!r}, task_name={self.task_name!r}, "
+            f"status={self.status!r})"
+        )
+
+
+class EmailLog(Base):
+    """Data model for storing email logs."""
+
+    __tablename__: str = "email_logs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    recipient: Mapped[str] = mapped_column(String(50), index=True)
+    subject: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    sent_at: Mapped[Optional[str]] = mapped_column("sentAt", default=datetime.now)
+    created_at: Mapped[Optional[str]] = mapped_column("createdAt", default=datetime.now)
+
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of the email log.
+
+        Returns
+        -------
+        str
+        """
+        return (
+            f"{self.__class__.__name__}(recipient={self.recipient!r}, subject={self.subject!r}, "
+            f"status={self.status!r})"
+        )
 
 
 @contextmanager
@@ -67,6 +118,7 @@ def get_db_session() -> Generator[Session, None, None]:
     except Exception:
         session.rollback()
         raise
+
     finally:
         session.close()
 
