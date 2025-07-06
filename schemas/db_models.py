@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Generator, Type, TypeVar
 
 from pydantic import BaseModel
-from sqlalchemy import JSON, String, Text, create_engine
+from sqlalchemy import JSON, Float, String, Text, create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
@@ -18,10 +18,10 @@ class Base(DeclarativeBase):
     pass
 
 
-class NERData(Base):
+class NERResult(Base):
     """Data model for storing Named Entity Recognition (NER) data."""
 
-    __tablename__: str = "ner_data"
+    __tablename__: str = "ner_results"
     id: Mapped[int] = mapped_column(primary_key=True)
     status: Mapped[str] = mapped_column(String(50))
     data: Mapped[dict[str, Any]] = mapped_column(JSON)
@@ -62,7 +62,7 @@ class TaskResult(Base):
     result: Mapped[dict[str, Any]] = mapped_column(JSON)
     error_message: Mapped[str] = mapped_column(Text)
     created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
-    completed_at: Mapped[str | None] = mapped_column("completedAt", default=datetime.now)
+    completed_at: Mapped[str] = mapped_column("completedAt")
 
     def __repr__(self) -> str:
         """
@@ -98,9 +98,10 @@ class EmailLog(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     recipient: Mapped[str] = mapped_column(String(50), index=True)
     subject: Mapped[str] = mapped_column(String(100))
+    body: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    sent_at: Mapped[str | None] = mapped_column("sentAt", default=datetime.now)
     created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
+    sent_at: Mapped[str] = mapped_column("sentAt")
 
     def __repr__(self) -> str:
         """
@@ -124,6 +125,46 @@ class EmailLog(Base):
             "status",
             "sent_at",
             "created_at",
+        ]
+
+
+class DataProcessingJob(Base):
+    """Data model for storing email logs."""
+
+    __tablename__: str = "data_processing_jobs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    job_name: Mapped[str] = mapped_column(String(50), index=True)
+    input_data: Mapped[str] = mapped_column(Text)
+    output_data: Mapped[str] = mapped_column(Text)
+    processing_time: Mapped[float] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
+    completed_at: Mapped[str] = mapped_column("completedAt")
+
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of the email log.
+
+        Returns
+        -------
+        str
+        """
+        return (
+            f"{self.__class__.__name__}(job_name={self.job_name!r}, created_at={self.created_at!r}, "
+            f"status={self.status!r})"
+        )
+
+    def output_fields(self) -> list[str]:
+        """Get the output fields."""
+        return [
+            "id",
+            "job_name",
+            "input_data",
+            "output_data",
+            "processing_time",
+            "status",
+            "created_at",
+            "completed_at",
         ]
 
 

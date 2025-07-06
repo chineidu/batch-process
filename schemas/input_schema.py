@@ -77,9 +77,10 @@ class EmailSchema(BaseModel):
     """Data schema for email data."""
 
     recipient: str = Field(description="The recipient")
-    subject: str = Field(description="Task email subject")
+    subject: str = Field(description="Email subject")
+    body: str = Field(description="Email body")
     status: Literal["failed", "pending", "processing", "sent"] = Field(
-        default="pending", description="Task status"
+        default="pending", description="Email status"
     )
     created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
     sent_at: str | None = Field(default=None, description="Time sent")
