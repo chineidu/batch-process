@@ -43,9 +43,9 @@ def create_celery_app() -> Celery:
 
     # Task discovery
     celery.autodiscover_tasks([
-        "app.tasks.email_tasks",
-        "app.tasks.data_processing",
-        # "app.tasks.periodic_tasks",
+        "src.celery.tasks.email_tasks",
+        "src.celery.tasks.data_processing",
+        # "src.celery.tasks.periodic_tasks",
     ])
 
     return celery
