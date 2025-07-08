@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     POSTGRES_USER: str
     POSTGRES_PASSWORD: SecretStr
     POSTGRES_DB: str
+    POSTGRES_PORT: int
 
     @property
     def rabbitmq_url(self) -> str:

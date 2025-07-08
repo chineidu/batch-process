@@ -8,8 +8,15 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from config import app_config
+from config.settings import refresh_settings
 
-engine: Engine = create_engine(app_config.db.db_path, echo=False)
+settings = refresh_settings()
+
+DATABASE_URL = (
+    f"postgresql+psycopg2://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD.get_secret_value()}"
+    f"@localhost:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
+)
+engine: Engine = create_engine(DATABASE_URL, echo=False)
 T = TypeVar("T", bound="BaseModel")
 D = TypeVar("D", bound="Base")
 
@@ -62,7 +69,7 @@ class TaskResult(Base):
     result: Mapped[dict[str, Any]] = mapped_column(JSON)
     error_message: Mapped[str] = mapped_column(Text)
     created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
-    completed_at: Mapped[str] = mapped_column("completedAt")
+    completed_at: Mapped[str] = mapped_column("completedAt", nullable=True)
 
     def __repr__(self) -> str:
         """
@@ -101,7 +108,7 @@ class EmailLog(Base):
     body: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="pending")
     created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
-    sent_at: Mapped[str] = mapped_column("sentAt")
+    sent_at: Mapped[str] = mapped_column("sentAt", nullable=True)
 
     def __repr__(self) -> str:
         """
@@ -139,7 +146,7 @@ class DataProcessingJob(Base):
     processing_time: Mapped[float] = mapped_column(Float)
     status: Mapped[str] = mapped_column(String(20), default="pending")
     created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
-    completed_at: Mapped[str] = mapped_column("completedAt")
+    completed_at: Mapped[str] = mapped_column("completedAt", nullable=True)
 
     def __repr__(self) -> str:
         """

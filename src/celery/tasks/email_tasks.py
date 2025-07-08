@@ -16,8 +16,10 @@ logger = create_logger()
 rng = np.random.default_rng(42)
 
 
+# Note: When `bind=True`, celery automatically passes the task instance as the first argument
+# meaning that we need to use `self`. it also automatically retries failed tasks.
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
-def send_email(data: dict[str, Any]) -> dict[str, Any]:
+def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:  # noqa: ANN001, ARG001
     """Send an email to a recipient with the given subject and body.
 
     Parameters
@@ -35,6 +37,12 @@ def send_email(data: dict[str, Any]) -> dict[str, Any]:
     Exception
         If there is an error during the email sending process.
     """
+    data: dict[str, Any] = {
+        "recipient": recipient,
+        "subject": subject,
+        "status": "processing",
+        "body": body,
+    }
     data_dict: dict[str, Any] = EmailSchema(**data).to_data_model_dict()  # type: ignore
 
     try:
@@ -43,23 +51,23 @@ def send_email(data: dict[str, Any]) -> dict[str, Any]:
             db.add(email_log)
             db.flush()
 
-        # Simulate email sending process
-        time.sleep(2)
+            # Simulate email sending process
+            time.sleep(2)
 
-        # Simulate email sending failure
-        if rng.random() < 0.3:
-            # Update email log
-            email_log.sent_at = datetime.now()  # type: ignore
-            email_log.status = "failed"
-            logger.error("Email sending failed")
+            # Simulate email sending failure
+            if rng.random() < 0.3:
+                # Update email log
+                email_log.sent_at = datetime.now()  # type: ignore
+                email_log.status = "failed"
+                logger.error("Email sending failed")
+                return {key: getattr(email_log, key) for key in email_log.output_fields()}  # type: ignore
+
+            # Update email log with sent time
+            email_log.sent_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # type: ignore
+            email_log.status = "sent"
+
+            logger.info(f" [+] Email sent to {data_dict.get('recipient')}")
             return {key: getattr(email_log, key) for key in email_log.output_fields()}  # type: ignore
-
-        # Update email log with sent time
-        email_log.sent_at = datetime.now()  # type: ignore
-        email_log.status = "sent"
-
-        logger.info(f" [+] Email sent to {data_dict.get('recipient')}")
-        return {key: getattr(email_log, key) for key in email_log.output_fields()}  # type: ignore
 
     except Exception as e:
         with get_db_session() as db:
@@ -73,7 +81,10 @@ def send_email(data: dict[str, Any]) -> dict[str, Any]:
             email_log.sent_at = datetime.now()  # type: ignore
             email_log.status = "failed"
         logger.error(f" [x] Error sending email: {e}")
-        return {key: getattr(email_log, key) for key in email_log.output_fields()}  # type: ignore
+        # return {key: getattr(email_log, key) for key in email_log.output_fields()}  # type: ignore
+
+        # Retry with exponential backoff
+        raise self.retry(exc=e, countdown=60 * (2**self.request.retries)) from e
 
 
 @celery_app.task
@@ -96,9 +107,11 @@ def send_bulk_emails(emails: list[dict[str, str]]) -> dict[str, Any]:
             Number of emails to be sent
         - group_id : str
             Unique identifier for the group of email tasks
-            
+
     """
-    job = group(send_email.s(email) for email in emails)
+    job = group(
+        send_email.s(email["recipient"], email["subject"], email["body"]) for email in emails
+    )
     result = job.apply_async()
 
     return {"status": "dispatched", "total_emails": len(emails), "group_id": result.id}

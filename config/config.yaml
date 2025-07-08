@@ -43,9 +43,9 @@ app_config:
       timezone: UTC
       enable_utc: true
     task_routes:
-      app.tasks.email_tasks.*: { queue: email }
-      app.tasks.dataprocessing.*: { queue: data }
-      app.tasks.periodic_tasks.*: { queue: periodic }
+      src.celery.tasks.email_tasks.*: { queue: email }
+      src.celery.tasks.data_processing.*: { queue: data }
+      src.celery.tasks.periodic_tasks.*: { queue: periodic }
 
     worker_config:
       worker_prefetch_multiplier: 1

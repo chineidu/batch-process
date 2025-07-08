@@ -5,8 +5,8 @@ from config.settings import refresh_settings
 settings = refresh_settings()
 
 DATABASE_URL = (
-    f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD.get_secret_value()}"
-    f"@localhost:5432/{settings.POSTGRES_DB}"
+    f"db+postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD.get_secret_value()}"
+    f"@localhost:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
 )
 
 

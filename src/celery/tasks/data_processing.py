@@ -15,9 +15,10 @@ logger = create_logger()
 
 rng = np.random.default_rng(42)
 
-
+# Note: When `bind=True`, celery automatically passes the task instance as the first argument
+# meaning that we need to use `self`
 @celery_app.task(bind=True)
-def process_data_chunk(chunk_data: list[str], chunk_id: int) -> dict[str, Any]:
+def process_data_chunk(self, chunk_data: list[str], chunk_id: int) -> dict[str, Any]:  # noqa: ANN001, ARG001
     """Process a chunk of data"""
     try:
         start_time = time.time()
