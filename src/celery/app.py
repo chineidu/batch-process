@@ -25,19 +25,28 @@ def create_celery_app() -> Celery:
 
     # Configuration
     celery.conf.update(
-        broker_url=app_config.celery_config.broker_url,
+        # DB result backend config
         result_backend=DATABASE_URL,
+        result_backend_always_retry=app_config.celery_config.other_config.result_backend_always_retry,
+        result_persistent=app_config.celery_config.other_config.result_persistent,
+        result_backend_max_retries=app_config.celery_config.other_config.result_backend_max_retries,
+        result_expires=app_config.celery_config.other_config.result_expires,
+        # Broker config
+        broker_url=app_config.celery_config.broker_url,
+        # Task config
         task_serializer=app_config.celery_config.task_config.task_serializer,
         result_serializer=app_config.celery_config.task_config.result_serializer,
         timezone=app_config.celery_config.task_config.timezone,
         enable_utc=app_config.celery_config.task_config.enable_utc,
-        task_routes=app_config.celery_config.task_routes,
-        worker_prefetch_multiplier=app_config.celery_config.worker_config.worker_prefetch_multiplier,
-        task_acks_late=app_config.celery_config.worker_config.task_acks_late,
-        worker_max_tasks_per_child=app_config.celery_config.worker_config.worker_max_tasks_per_child,
-        beat_schedule=app_config.celery_config.beat_config.beat_schedule,
-        result_expires=app_config.celery_config.other_config.task_compression,
         task_compression=app_config.celery_config.other_config.task_compression,
+        # Task routing
+        task_routes=app_config.celery_config.task_routes,
+        # Beat schedule
+        beat_schedule=app_config.celery_config.beat_config.beat_schedule,
+        # Worker config
+        worker_prefetch_multiplier=app_config.celery_config.worker_config.worker_prefetch_multiplier,
+        worker_max_tasks_per_child=app_config.celery_config.worker_config.worker_max_tasks_per_child,
+        task_acks_late=app_config.celery_config.worker_config.task_acks_late,
         result_compression=app_config.celery_config.other_config.result_compression,
     )
 

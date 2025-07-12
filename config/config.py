@@ -118,6 +118,9 @@ class OtherConfig(BaseSchema):
     result_expires: int
     task_compression: str
     result_compression: str
+    result_backend_always_retry: bool
+    result_persistent: bool
+    result_backend_max_retries: int
 
 
 class CeleryConfig(BaseSchema):
