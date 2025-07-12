@@ -19,6 +19,8 @@ elif settings.ENVIRONMENT in ["dev", "prod"]:
         f"postgresql+psycopg2://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD.get_secret_value()}"
         f"@localhost:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
     )
+print(f"Connected to {settings.ENVIRONMENT!r} environment database.")
+
 engine: Engine = create_engine(DATABASE_URL, echo=False)
 T = TypeVar("T", bound="BaseModel")
 D = TypeVar("D", bound="Base")
