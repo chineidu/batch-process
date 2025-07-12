@@ -12,10 +12,13 @@ from config.settings import refresh_settings
 
 settings = refresh_settings()
 
-DATABASE_URL = (
-    f"postgresql+psycopg2://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD.get_secret_value()}"
-    f"@localhost:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
-)
+if settings.ENVIRONMENT == "test":
+    DATABASE_URL: str = app_config.db.db_path
+elif settings.ENVIRONMENT in ["dev", "prod"]:
+    DATABASE_URL = (
+        f"postgresql+psycopg2://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD.get_secret_value()}"
+        f"@localhost:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
+    )
 engine: Engine = create_engine(DATABASE_URL, echo=False)
 T = TypeVar("T", bound="BaseModel")
 D = TypeVar("D", bound="Base")

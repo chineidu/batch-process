@@ -1,3 +1,5 @@
+from typing import Literal
+
 from dotenv import load_dotenv
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,7 +12,10 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env")
 
-    # RabbitMQ settings
+    # ======= Environment =======
+    ENVIRONMENT: Literal["dev", "prod", "test"]
+
+    # ======= RabbitMQ settings =======
     RABBITMQ_HOST: str = "localhost"
     RABBITMQ_PORT: int = 5672
     RABBITMQ_DEFAULT_USER: str
@@ -19,7 +24,7 @@ class Settings(BaseSettings):
     RABBITMQ_HEARTBEAT: int = 600
     RABBITMQ_DIRECT_EXCHANGE: str = "person_exchange"
 
-    # Database settings
+    # ======= Database settings =======
     POSTGRES_USER: str
     POSTGRES_PASSWORD: SecretStr
     POSTGRES_DB: str

@@ -7,6 +7,7 @@
   - [Introduction](#introduction)
   - [Celery](#celery)
     - [Configuration](#configuration)
+    - [Start Docker Compose](#start-docker-compose)
 
 ## Introduction
 
@@ -35,4 +36,14 @@ task_routes:
   src.celery.tasks.email_tasks.*: { queue: email }
   src.celery.tasks.data_processing.*: { queue: data }
   src.celery.tasks.periodic_tasks.*: { queue: periodic }
+```
+
+### Start Docker Compose
+
+```sh
+# Start Docker Compose
+docker compose -f docker-compose-dev.yml up
+
+# Stop Docker Compose
+docker compose -f docker-compose-dev.yml down
 ```

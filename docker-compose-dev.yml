@@ -1,6 +1,6 @@
 services:
   local-rabbitmq: # 1st service
-    image: rabbitmq:4.0-management
+    image: rabbitmq:4.1.2-management
     container_name: local-rabbitmq # Also used as hostname
     env_file: # Location of file(s) containing the env vars. Only accessed by the container.
       - .env
