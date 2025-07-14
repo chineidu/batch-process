@@ -66,7 +66,7 @@ class TaskSchema(BaseModel):
     result: dict[str, Any] = Field(default_factory=dict, description="Task result")
     error_message: str = Field(default="", description="Error message")
     created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
-    completed_at: str | None = Field(default=None, description="Completion time")
+    completed_at: datetime | None = Field(default_factory=datetime.now, description="Completion time")
 
     def to_data_model_dict(self) -> dict[str, Any]:
         """Converts the task schema to a dictionary that can be inserted into the database."""
@@ -83,7 +83,7 @@ class EmailSchema(BaseModel):
         default="processing", description="Email status"
     )
     created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
-    sent_at: str | None = Field(default=None, description="Time sent")
+    sent_at: datetime | None = Field(default_factory=datetime.now, description="Time sent")
 
     def to_data_model_dict(self) -> dict[str, Any]:
         """Converts the task schema to a dictionary that can be inserted into the database."""
@@ -101,7 +101,7 @@ class DataProcessingSchema(BaseModel):
         default="pending", description="Email status"
     )
     created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
-    completed_at: str | None = Field(default=None, description="Completion time")
+    completed_at: datetime | None = Field(default_factory=datetime.now, description="Completion time")
 
     def to_data_model_dict(self) -> dict[str, Any]:
         """Converts the task schema to a dictionary that can be inserted into the database."""

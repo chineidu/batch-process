@@ -17,7 +17,7 @@ rng = np.random.default_rng(42)
 
 
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
-# meaning that we need to use `self`. it also automatically retries failed tasks.
+# meaning that we need to use `self` and this provides additional functionality like retries, etc
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
 def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:  # noqa: ANN001, ARG001
     """Send an email to a recipient with the given subject and body.
@@ -55,15 +55,15 @@ def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:
             time.sleep(2)
 
             # Simulate email sending failure
-            if rng.random() < 0.3:
+            if rng.random() < 0.15:
                 # Update email log
-                email_log.sent_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                email_log.sent_at = datetime.now()
                 email_log.status = "failed"
                 logger.error("Email sending failed")
                 raise self.retry(countdown=60 * (2**self.request.retries))
 
             # Update successful task with sent time
-            email_log.sent_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            email_log.sent_at = datetime.now()
             email_log.status = "sent"
 
             logger.info(f" [+] Email sent to {data_dict.get('recipient')}")
@@ -78,7 +78,7 @@ def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:
             )
             email_log = db.execute(statement).scalar_one()
             # Update email log
-            email_log.sent_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            email_log.sent_at = datetime.now()
             email_log.status = "failed"
         logger.error(f" [x] Error sending email: {e}")
 

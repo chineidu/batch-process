@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Generator, Type, TypeVar
 
 from pydantic import BaseModel
-from sqlalchemy import JSON, Float, LargeBinary, String, Text, create_engine
+from sqlalchemy import JSON, Float, Integer, LargeBinary, String, Text, create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.orm.properties import MappedColumn
@@ -38,7 +38,7 @@ class NERResult(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     status: Mapped[str] = mapped_column(String(50))
     data: Mapped[dict[str, Any]] = mapped_column(JSON)
-    timestamp: Mapped[str | None] = mapped_column("timestamp", default=datetime.now)
+    timestamp: Mapped[str | None] = mapped_column(default=datetime.now)
     created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
 
     def __repr__(self) -> str:
@@ -49,9 +49,7 @@ class NERResult(Base):
         -------
         str
         """
-        return (
-            f"{self.__class__.__name__}(id={self.id!r}, status={self.status!r}, data={self.data!r})"
-        )
+        return f"{self.__class__.__name__}(id={self.id!r}, status={self.status!r}, data={self.data!r})"
 
     def output_fields(self) -> list[str]:
         """Get the output fields."""
@@ -69,13 +67,13 @@ class TaskResult(Base):
 
     __tablename__: str = "task_results"
     id: Mapped[int] = mapped_column(primary_key=True)
-    task_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
-    task_name: Mapped[str] = mapped_column(String(50), index=True)
+    task_id: Mapped[str] = mapped_column("taskId", String(50), unique=True, index=True)
+    task_name: Mapped[str] = mapped_column("taskName", String(50), index=True)
     status: Mapped[str] = mapped_column(String(20), default="pending")
     result: Mapped[dict[str, Any]] = mapped_column(JSON)
-    error_message: Mapped[str] = mapped_column(Text)
+    error_message: Mapped[str] = mapped_column("errorMessage", Text)
     created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
-    completed_at: Mapped[str] = mapped_column("completedAt", nullable=True)
+    completed_at: Mapped[datetime] = mapped_column("completedAt", nullable=True)
 
     def __repr__(self) -> str:
         """
@@ -86,8 +84,7 @@ class TaskResult(Base):
         str
         """
         return (
-            f"{self.__class__.__name__}(task_id={self.task_id!r}, task_name={self.task_name!r}, "
-            f"status={self.status!r})"
+            f"{self.__class__.__name__}(task_id={self.task_id!r}, task_name={self.task_name!r}, status={self.status!r})"
         )
 
     def output_fields(self) -> list[str]:
@@ -113,8 +110,8 @@ class EmailLog(Base):
     subject: Mapped[str] = mapped_column(String(100))
     body: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
-    sent_at: Mapped[str] = mapped_column("sentAt", nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column("createdAt", default=datetime.now)
+    sent_at: Mapped[datetime] = mapped_column("sentAt", nullable=True)
 
     def __repr__(self) -> str:
         """
@@ -125,8 +122,7 @@ class EmailLog(Base):
         str
         """
         return (
-            f"{self.__class__.__name__}(recipient={self.recipient!r}, subject={self.subject!r}, "
-            f"status={self.status!r})"
+            f"{self.__class__.__name__}(recipient={self.recipient!r}, subject={self.subject!r}, status={self.status!r})"
         )
 
     def output_fields(self) -> list[str]:
@@ -146,13 +142,13 @@ class DataProcessingJob(Base):
 
     __tablename__: str = "data_processing_jobs"
     id: Mapped[int] = mapped_column(primary_key=True)
-    job_name: Mapped[str] = mapped_column(String(50), index=True)
-    input_data: Mapped[str] = mapped_column(Text)
-    output_data: Mapped[str] = mapped_column(Text)
-    processing_time: Mapped[float] = mapped_column(Float)
+    job_name: Mapped[str] = mapped_column("jobName", String(50), index=True)
+    input_data: Mapped[str] = mapped_column("inputData", Text)
+    output_data: Mapped[str] = mapped_column("outputData", Text)
+    processing_time: Mapped[float] = mapped_column("processingTime", Float)
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
-    completed_at: Mapped[str] = mapped_column("completedAt", nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column("createdAt", default=datetime.now)
+    completed_at: Mapped[datetime] = mapped_column("completedAt", nullable=True)
 
     def __repr__(self) -> str:
         """
@@ -179,6 +175,55 @@ class DataProcessingJob(Base):
             "created_at",
             "completed_at",
         ]
+
+
+# Celery specific
+class CeleryTaskMeta(Base):
+    """Data model for storing Celery task meta."""
+
+    __tablename__: str = "celery_task_meta"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[str] = mapped_column("taskId", String(255), unique=True, index=True)
+    status: Mapped[str] = mapped_column(String(50), default="PENDING")
+    result: MappedColumn[Any] = mapped_column(LargeBinary)
+    date_done: Mapped[str] = mapped_column("dateDone", nullable=True)
+    traceback: Mapped[str] = mapped_column(String)
+    name: Mapped[str] = mapped_column(String(255))
+    args: MappedColumn[Any] = mapped_column(LargeBinary)
+    kwargs: MappedColumn[Any] = mapped_column(LargeBinary)
+    worker: Mapped[str] = mapped_column(String(255))
+    retries: Mapped[int] = mapped_column(Integer, default=0)
+    queue: Mapped[str] = mapped_column(String(255))
+
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of the email log.
+
+        Returns
+        -------
+        str
+        """
+        return (
+            f"{self.__class__.__name__}(task_id={self.task_id!r}, date_done={self.date_done!r} status={self.status!r})"
+        )
+
+    def output_fields(self) -> list[str]:
+        """Get the output fields."""
+        return [
+            "id",
+            "task_id",
+            "status",
+            "result",
+            "date_done",
+            "traceback",
+            "name",
+            "args",
+            "kwargs",
+            "worker",
+            "retries",
+            "queue",
+        ]
+
 
 class CeleryTasksetMeta(Base):
     """Data model for storing email logs."""
@@ -197,23 +242,17 @@ class CeleryTasksetMeta(Base):
         -------
         str
         """
-        return (
-            f"{self.__class__.__name__}(job_name={self.job_name!r}, created_at={self.created_at!r}, "
-            f"status={self.status!r})"
-        )
+        return f"{self.__class__.__name__}(task_set_id={self.task_set_id!r}, date_done={self.date_done!r})"
 
     def output_fields(self) -> list[str]:
         """Get the output fields."""
         return [
             "id",
-            "job_name",
-            "input_data",
-            "output_data",
-            "processing_time",
-            "status",
-            "created_at",
-            "completed_at",
+            "task_set_id",
+            "result",
+            "date_done",
         ]
+
 
 @contextmanager
 def get_db_session() -> Generator[Session, None, None]:

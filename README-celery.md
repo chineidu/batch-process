@@ -12,6 +12,8 @@
     - [Start The Beat Scheduler](#start-the-beat-scheduler)
       - [Beat Scheduler](#beat-scheduler)
     - [Start The Producer](#start-the-producer)
+    - [Monitor Tasks](#monitor-tasks)
+  - [Putting It All Together](#putting-it-all-together)
 
 ## Introduction
 
@@ -64,10 +66,10 @@ uv run --active worker.py
 ### Start The Beat Scheduler
 
 ```sh
-uvr celery -A path.to.module beat --loglevel=info
+uv run celery -A path.to.module beat --loglevel=info
 
 # e.g.
-uvr celery -A src.celery.app beat --loglevel=info
+uv run celery -A src.celery.app beat --loglevel=info
 ```
 
 #### Beat Scheduler
@@ -89,5 +91,35 @@ uvr celery -A src.celery.app beat --loglevel=info
 ### Start The Producer
 
 ```sh
-uv run --active producer.py
+uv run main_logic.py
+```
+
+### Monitor Tasks
+
+- Monitor the tasks using [flower](https://flower.readthedocs.io/en/latest/)
+
+```sh
+uv run celery -A src.celery.app flower
+```
+
+## Putting It All Together
+
+```sh
+# Stop Docker Compose (if running)
+docker compose -f docker-compose-dev.yml down
+
+# Start Docker Compose
+docker compose -f docker-compose-dev.yml up
+
+# Start The Worker
+uv run worker.py
+
+# Start The Beat Scheduler
+uv run celery -A src.celery.app beat --loglevel=info
+
+# Start Flower (Task Monitoring)
+uv run celery -A src.celery.app flower
+
+# Start The Producer/Tasks
+uv run main_logic.py
 ```

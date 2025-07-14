@@ -15,8 +15,9 @@ logger = create_logger()
 
 rng = np.random.default_rng(42)
 
+
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
-# meaning that we need to use `self`
+# meaning that we need to use `self` and this provides additional functionality like retries, etc
 @celery_app.task(bind=True)
 def process_data_chunk(self, chunk_data: list[str], chunk_id: int) -> dict[str, Any]:  # noqa: ANN001, ARG001
     """Process a chunk of data"""
@@ -24,8 +25,8 @@ def process_data_chunk(self, chunk_data: list[str], chunk_id: int) -> dict[str, 
         start_time = time.time()
 
         # Simulate data processing
-        processed_data = []
-        total_items = len(chunk_data)
+        processed_data: list[str] = []
+        total_items: int | None = len(chunk_data)
 
         for i, item in enumerate(chunk_data):
             # Update task progress
@@ -40,13 +41,14 @@ def process_data_chunk(self, chunk_data: list[str], chunk_id: int) -> dict[str, 
             if isinstance(item, str):
                 processed_item = item.upper()
 
+            else:
+                processed_item = item
+
             processed_data.append(processed_item)
 
-        processing_time = time.time() - start_time
+        processing_time: float | None = time.time() - start_time
 
-        logger.info(
-            f"Processed chunk {chunk_id} with {total_items} items in {processing_time:.2f}s"
-        )
+        logger.info(f"Processed chunk {chunk_id} with {total_items} items in {processing_time:.2f}s")
 
         return {
             "chunk_id": chunk_id,
@@ -76,7 +78,7 @@ def combine_processed_chunks(chunk_results: list[Any]) -> dict[str, Any]:
             sorted_results = sorted(chunk_results, key=lambda x: x["chunk_id"])
 
             # Combine all processed data
-            combined_data = []
+            combined_data: list[str] = []
             total_processing_time: int = 0
             total_items: int = 0
 
@@ -92,7 +94,7 @@ def combine_processed_chunks(chunk_results: list[Any]) -> dict[str, Any]:
                 output_data=json.dumps({"total_items": total_items}),
                 processing_time=total_processing_time,
                 status="completed",
-                completed_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                completed_at=datetime.now(),
             ).to_data_model_dict()
             job = DataProcessingJob(**data)
             session.add(job)
@@ -100,10 +102,17 @@ def combine_processed_chunks(chunk_results: list[Any]) -> dict[str, Any]:
 
             logger.info(f"Combined {len(sorted_results)} chunks with {total_items} total items")
 
-            return {key: getattr(job, key) for key in job.output_fields()}  # type: ignore
+            return {
+                "status": "completed",
+                "total_chunks": len(sorted_results),
+                "total_items": total_items,
+                "total_processing_time": total_processing_time,
+                "job_id": job.id,
+                "data": combined_data,
+            }
 
-    except Exception as exc:
-        logger.error(f"Error combining chunks: {exc}")
+    except Exception as e:
+        logger.error(f"Error combining chunks: {e}")
         raise
 
 
@@ -114,7 +123,7 @@ def process_large_dataset(data: list[Any], chunk_size: int = 10) -> dict[str, An
     """
     try:
         # Split data into chunks
-        chunks = [data[i : i + chunk_size] for i in range(0, len(data), chunk_size)]
+        chunks: list[list[Any]] = [data[i : i + chunk_size] for i in range(0, len(data), chunk_size)]
 
         # Create a chord: process chunks in parallel, then combine results
         job = chord(

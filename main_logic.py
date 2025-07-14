@@ -28,7 +28,7 @@ def main() -> None:
         if hasattr(result, "traceback"):
             print(f"Traceback: {result.traceback}")
 
-    # Example 2: Send  emails
+    # Example 2: Send emails
     print("\n2. Sending bulk emails...")
     emails = [
         {"recipient": f"user{i}@example.com", "subject": f"Bulk Email {i}", "body": f"Message {i}"}
