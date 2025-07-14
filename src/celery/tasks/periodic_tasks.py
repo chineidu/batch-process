@@ -51,6 +51,7 @@ def health_check() -> dict[str, Any] | dict[str, str]:
         with get_db_session() as session:
             # Check database connectivity
             from sqlalchemy import text
+
             session.execute(text("SELECT 1"))
 
             # Get some statistics
@@ -58,7 +59,6 @@ def health_check() -> dict[str, Any] | dict[str, str]:
             recent_emails = (
                 session.query(EmailLog).where(EmailLog.created_at > datetime.now() - timedelta(hours=24)).count()
             )
-
             active_jobs = session.query(DataProcessingJob).where(DataProcessingJob.status == "pending").count()
 
             logger.info("Health check completed successfully")
@@ -75,4 +75,4 @@ def health_check() -> dict[str, Any] | dict[str, str]:
 
     except Exception as exc:
         logger.error(f"Health check failed: {exc}")
-        return {"status": "unhealthy", "error": str(exc), "timestamp": datetime.utcnow().isoformat()}
+        return {"status": "unhealthy", "error": str(exc), "timestamp": datetime.now().isoformat()}

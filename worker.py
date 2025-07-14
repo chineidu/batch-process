@@ -7,7 +7,9 @@ logger = create_logger(name="worker")
 
 def run_worker() -> None:
     """Run the Celery worker."""
+
     # Initialize database
+    logger.info("Initializing database...")
     init_db()
 
     # Start worker
@@ -15,7 +17,7 @@ def run_worker() -> None:
         "worker",
         "--loglevel=info",
         "--concurrency=4",
-        "--queues=email,data,celery",
+        "--queues=email,data,periodic,celery",
         "--hostname=worker@%h",
     ])
 
