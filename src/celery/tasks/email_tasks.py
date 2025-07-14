@@ -57,13 +57,13 @@ def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:
             # Simulate email sending failure
             if rng.random() < 0.3:
                 # Update email log
-                email_log.sent_at = datetime.now()  # type: ignore
+                email_log.sent_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 email_log.status = "failed"
                 logger.error("Email sending failed")
-                return {key: getattr(email_log, key) for key in email_log.output_fields()}  # type: ignore
+                raise self.retry(countdown=60 * (2**self.request.retries))
 
-            # Update email log with sent time
-            email_log.sent_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # type: ignore
+            # Update successful task with sent time
+            email_log.sent_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             email_log.status = "sent"
 
             logger.info(f" [+] Email sent to {data_dict.get('recipient')}")
@@ -78,10 +78,9 @@ def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:
             )
             email_log = db.execute(statement).scalar_one()
             # Update email log
-            email_log.sent_at = datetime.now()  # type: ignore
+            email_log.sent_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             email_log.status = "failed"
         logger.error(f" [x] Error sending email: {e}")
-        # return {key: getattr(email_log, key) for key in email_log.output_fields()}  # type: ignore
 
         # Retry with exponential backoff
         raise self.retry(exc=e, countdown=60 * (2**self.request.retries)) from e
@@ -112,6 +111,7 @@ def send_bulk_emails(emails: list[dict[str, str]]) -> dict[str, Any]:
     job = group(
         send_email.s(email["recipient"], email["subject"], email["body"]) for email in emails
     )
+    # Dispatch the tasks asynchronously
     result = job.apply_async()
 
     return {"status": "dispatched", "total_emails": len(emails), "group_id": result.id}

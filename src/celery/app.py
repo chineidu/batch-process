@@ -1,3 +1,5 @@
+from typing import Any
+
 from celery import Celery
 from config import app_config
 from config.settings import refresh_settings
@@ -23,6 +25,12 @@ def create_celery_app() -> Celery:
     """
     celery = Celery("celery_project")
 
+    # Convert the beat_schedule to a dictionary
+    beat_dict: dict[str, dict[str, Any]] = dict(app_config.celery_config.beat_config.beat_schedule.model_dump().items())
+
+    # Add the health_check
+    beat_dict["health_check"] = app_config.celery_config.beat_config.health_check.model_dump()
+
     # Configuration
     celery.conf.update(
         # DB result backend config
@@ -42,7 +50,7 @@ def create_celery_app() -> Celery:
         # Task routing
         task_routes=app_config.celery_config.task_routes,
         # Beat schedule
-        beat_schedule=app_config.celery_config.beat_config.beat_schedule,
+        beat_schedule=beat_dict,  # dict is required!
         # Worker config
         worker_prefetch_multiplier=app_config.celery_config.worker_config.worker_prefetch_multiplier,
         worker_max_tasks_per_child=app_config.celery_config.worker_config.worker_max_tasks_per_child,
@@ -54,7 +62,7 @@ def create_celery_app() -> Celery:
     celery.autodiscover_tasks([
         "src.celery.tasks.email_tasks",
         "src.celery.tasks.data_processing",
-        # "src.celery.tasks.periodic_tasks",
+        "src.celery.tasks.periodic_tasks",
     ])
 
     return celery

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from pprint import pprint
 
 from omegaconf import DictConfig, OmegaConf
 from pydantic import Field
@@ -149,3 +150,4 @@ config_path: Path = PACKAGE_PATH / "config/config.yaml"
 config: DictConfig = OmegaConf.load(config_path).app_config
 
 app_config: AppConfig = AppConfig(**config)  # type: ignore
+pprint(app_config)
