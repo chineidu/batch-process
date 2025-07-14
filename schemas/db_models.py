@@ -3,9 +3,10 @@ from datetime import datetime
 from typing import Any, Generator, Type, TypeVar
 
 from pydantic import BaseModel
-from sqlalchemy import JSON, Float, String, Text, create_engine
+from sqlalchemy import JSON, Float, LargeBinary, String, Text, create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
+from sqlalchemy.orm.properties import MappedColumn
 
 from config import app_config
 from config.settings import refresh_settings
@@ -179,6 +180,40 @@ class DataProcessingJob(Base):
             "completed_at",
         ]
 
+class CeleryTasksetMeta(Base):
+    """Data model for storing email logs."""
+
+    __tablename__: str = "celery_taskset_meta"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_set_id: Mapped[str] = mapped_column("taskSetId", String(255), unique=True, index=True)
+    result: MappedColumn[Any] = mapped_column(LargeBinary)
+    date_done: Mapped[str] = mapped_column("dateDone", nullable=True)
+
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of the email log.
+
+        Returns
+        -------
+        str
+        """
+        return (
+            f"{self.__class__.__name__}(job_name={self.job_name!r}, created_at={self.created_at!r}, "
+            f"status={self.status!r})"
+        )
+
+    def output_fields(self) -> list[str]:
+        """Get the output fields."""
+        return [
+            "id",
+            "job_name",
+            "input_data",
+            "output_data",
+            "processing_time",
+            "status",
+            "created_at",
+            "completed_at",
+        ]
 
 @contextmanager
 def get_db_session() -> Generator[Session, None, None]:

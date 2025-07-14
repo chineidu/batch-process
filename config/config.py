@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from pprint import pprint
 
 from omegaconf import DictConfig, OmegaConf
 from pydantic import Field
@@ -34,9 +33,7 @@ class DB(BaseSchema):
     """Database configuration class."""
 
     db_path: str = Field(description="Database name")
-    max_connections: int = Field(
-        description="The maximum connections the database can connect to at a given time."
-    )
+    max_connections: int = Field(description="The maximum connections the database can connect to at a given time.")
 
 
 class Model(BaseSchema):
@@ -150,4 +147,3 @@ config_path: Path = PACKAGE_PATH / "config/config.yaml"
 config: DictConfig = OmegaConf.load(config_path).app_config
 
 app_config: AppConfig = AppConfig(**config)  # type: ignore
-pprint(app_config)

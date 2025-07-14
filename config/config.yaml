@@ -56,10 +56,10 @@ app_config:
     beat_config:
       beat_schedule:
         cleanup_old_records:
-          task: app.tasks.periodic_tasks.cleanup_old_records
+          task: src.celery.tasks.periodic_tasks.cleanup_old_records
           schedule: 3600
       health_check:
-        task: app.tasks.periodic_tasks.health_check
+        task: src.celery.tasks.periodic_tasks.health_check
         schedule: 300
 
     other_config:

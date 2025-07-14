@@ -88,3 +88,6 @@ uvr celery -A src.celery.app beat --loglevel=info
 
 ### Start The Producer
 
+```sh
+uv run --active producer.py
+```

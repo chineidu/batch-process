@@ -38,12 +38,12 @@ def main() -> None:
     print(f"Bulk email result: {bulk_result.get(timeout=60)}")
 
     # Example 3: Process large dataset
-    # print("\n3. Processing large dataset...")
-    # large_data = list(range(100)) + [f"string_{i}" for i in range(50)]
-    # processing_result = procebulkss_large_dataset.delay(large_data, chunk_size=15)
-    # print(f"Processing result: {processing_result.get(timeout=120)}")
+    print("\n3. Processing large dataset...")
+    large_data = list(range(100)) + [f"string_{i}" for i in range(50)]
+    processing_result = process_large_dataset.delay(large_data, chunk_size=15)
+    print(f"Processing result: {processing_result.get(timeout=120)}")
 
-    # print("\nAll tasks completed!")
+    print("\nAll tasks completed!")
 
 
 if __name__ == "__main__":
