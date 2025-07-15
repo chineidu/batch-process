@@ -3,7 +3,17 @@ from datetime import datetime
 from typing import Any, Generator, Type, TypeVar
 
 from pydantic import BaseModel
-from sqlalchemy import JSON, Float, Integer, LargeBinary, String, Text, create_engine
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    Float,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    create_engine,
+    func,
+)
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.orm.properties import MappedColumn
@@ -38,8 +48,8 @@ class NERResult(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     status: Mapped[str] = mapped_column(String(50))
     data: Mapped[dict[str, Any]] = mapped_column(JSON)
-    timestamp: Mapped[str | None] = mapped_column(default=datetime.now)
-    created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
+    timestamp: Mapped[str | None] = mapped_column(default=func.now())
+    created_at: Mapped[str | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
 
     def __repr__(self) -> str:
         """
@@ -72,7 +82,7 @@ class TaskResult(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending")
     result: Mapped[dict[str, Any]] = mapped_column(JSON)
     error_message: Mapped[str] = mapped_column("errorMessage", Text)
-    created_at: Mapped[str | None] = mapped_column("createdAt", default=datetime.now)
+    created_at: Mapped[str | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
     completed_at: Mapped[datetime] = mapped_column("completedAt", nullable=True)
 
     def __repr__(self) -> str:
@@ -110,7 +120,7 @@ class EmailLog(Base):
     subject: Mapped[str] = mapped_column(String(100))
     body: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    created_at: Mapped[datetime | None] = mapped_column("createdAt", default=datetime.now)
+    created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
     sent_at: Mapped[datetime] = mapped_column("sentAt", nullable=True)
 
     def __repr__(self) -> str:
@@ -147,7 +157,7 @@ class DataProcessingJob(Base):
     output_data: Mapped[str] = mapped_column("outputData", Text)
     processing_time: Mapped[float] = mapped_column("processingTime", Float)
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    created_at: Mapped[datetime | None] = mapped_column("createdAt", default=datetime.now)
+    created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
     completed_at: Mapped[datetime] = mapped_column("completedAt", nullable=True)
 
     def __repr__(self) -> str:
@@ -307,7 +317,7 @@ def add_record_to_db(data: dict[str, Any], schema: Type[T], data_model: Type[D])
 
     """
     if isinstance(data, dict):
-        data_dict: dict[str, Any] = schema(**data).to_data_model_dict()  # type: ignore
+        data_dict: dict[str, Any] = schema(**data).model_dump()  # type: ignore
     with get_db_session() as db:
         record = data_model(**data_dict)
         db.add(record)
@@ -336,7 +346,7 @@ def bulk_insert_records(data: list[dict[str, Any]], schema: Type[T], data_model:
     None
     """
     if isinstance(data, list):
-        data_list: list[dict[str, Any]] = [schema(**row).to_data_model_dict() for row in data]  # type: ignore
+        data_list: list[dict[str, Any]] = [schema(**row).model_dump() for row in data]  # type: ignore
 
     with get_db_session() as db:
         db.bulk_insert_mappings(data_model, data_list)  # type: ignore

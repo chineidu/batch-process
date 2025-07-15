@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 from typing import Annotated, Any, Literal
 from uuid import uuid4
@@ -50,6 +49,11 @@ class PersonSchema(BaseSchema):
     survived: int = Field(default=0, description="Survival status of the passenger.")
     timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the entry.")
 
+    # @field_serializer("timestamp")
+    # def serialize_datetimes(self, v: datetime) -> str:
+    #     """Serializes datetime fields to ISO format."""
+    #     return v.isoformat()
+
 
 class MultiPersonsSchema(BaseSchema):
     """Schema for multiple people."""
@@ -61,16 +65,12 @@ class TaskSchema(BaseModel):
     """Data schema for task results."""
 
     task_id: str = Field(default_factory=lambda: uuid4().hex, description="Task id")
-    task_name: str = Field(description="Task id")
-    status: Literal["pending", "completed"] = Field(default="pending", description="Task status")
+    task_name: str = Field(description="Task name")
+    status: Literal["PENDING", "STARTED", "SUCCESS", "FAILURE"] = Field(default="PENDING", description="Task status")
     result: dict[str, Any] = Field(default_factory=dict, description="Task result")
     error_message: str = Field(default="", description="Error message")
     created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
-    completed_at: datetime | None = Field(default_factory=datetime.now, description="Completion time")
-
-    def to_data_model_dict(self) -> dict[str, Any]:
-        """Converts the task schema to a dictionary that can be inserted into the database."""
-        return json.loads(self.model_dump_json())
+    completed_at: datetime | None = Field(default=None, description="Completion time")
 
 
 class EmailSchema(BaseModel):
@@ -79,21 +79,17 @@ class EmailSchema(BaseModel):
     recipient: str = Field(description="The recipient")
     subject: str = Field(description="Email subject")
     body: str = Field(description="Email body")
-    status: Literal["dispatched", "failed", "processing", "sent"] = Field(
+    status: Literal["dispatched", "failed", "processing", "success"] = Field(
         default="processing", description="Email status"
     )
     created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
-    sent_at: datetime | None = Field(default_factory=datetime.now, description="Time sent")
-
-    def to_data_model_dict(self) -> dict[str, Any]:
-        """Converts the task schema to a dictionary that can be inserted into the database."""
-        return json.loads(self.model_dump_json())
+    sent_at: datetime | None = Field(default=None, description="Time sent")
 
 
 class DataProcessingSchema(BaseModel):
     """Data schema for data processing job."""
 
-    job_name: str = Field(description="The name of the ejob")
+    job_name: str = Field(description="The name of the job")
     input_data: str = Field(description="The input data")
     output_data: str = Field(description="The output data")
     processing_time: float = Field(description="The processing time")
@@ -101,8 +97,4 @@ class DataProcessingSchema(BaseModel):
         default="pending", description="Email status"
     )
     created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
-    completed_at: datetime | None = Field(default_factory=datetime.now, description="Completion time")
-
-    def to_data_model_dict(self) -> dict[str, Any]:
-        """Converts the task schema to a dictionary that can be inserted into the database."""
-        return json.loads(self.model_dump_json())
+    completed_at: datetime | None = Field(default=None, description="Completion time")

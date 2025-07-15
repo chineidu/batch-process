@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task
-def cleanup_old_records():
+def cleanup_old_records() -> dict[str, Any]:
     """
     Clean up old records from the database
     """
@@ -57,7 +57,7 @@ def health_check() -> dict[str, Any] | dict[str, str]:
             # Get some statistics
             total_tasks = session.query(TaskResult).count()
             recent_emails = (
-                session.query(EmailLog).where(EmailLog.created_at > datetime.now() - timedelta(hours=24)).count()
+                session.query(EmailLog).where(EmailLog.created_at > (datetime.now() - timedelta(hours=24))).count()
             )
             active_jobs = session.query(DataProcessingJob).where(DataProcessingJob.status == "pending").count()
 

@@ -19,8 +19,22 @@ rng = np.random.default_rng(42)
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
 # meaning that we need to use `self` and this provides additional functionality like retries, etc
 @celery_app.task(bind=True)
-def process_data_chunk(self, chunk_data: list[str], chunk_id: int) -> dict[str, Any]:  # noqa: ANN001, ARG001
-    """Process a chunk of data"""
+def process_data_chunk(self, chunk_data: list[str], chunk_id: int) -> dict[str, Any | None | float | int]:  # noqa: ANN001, ARG001
+    """
+    Process a chunk of data
+
+    Parameters
+    ----------
+    chunk_data : list[str]
+        List of strings to be processed
+    chunk_id : int
+        Unique identifier for this chunk
+
+    Returns
+    -------
+    dict[str, Any | None | float | int]
+        Dictionary containing processed data, processing time, and item count
+    """
     try:
         start_time = time.time()
 
@@ -95,7 +109,7 @@ def combine_processed_chunks(chunk_results: list[Any]) -> dict[str, Any]:
                 processing_time=total_processing_time,
                 status="completed",
                 completed_at=datetime.now(),
-            ).to_data_model_dict()
+            ).model_dump()
             job = DataProcessingJob(**data)
             session.add(job)
             session.flush()
