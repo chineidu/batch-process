@@ -94,12 +94,13 @@ def combine_processed_chunks(chunk_results: list[Any]) -> dict[str, Any]:
                 total_processing_time += result["processing_time"]
                 total_items += result["items_count"]
 
+            avg_processing_time = round((total_processing_time / len(sorted_results)), 2)
             # Save to database
             data = DataProcessingSchema(
                 job_name="bulk_data_processing",
                 input_data=json.dumps({"chunks": sorted_results}),
                 output_data=json.dumps({"combined_data": combined_data, "total_items": total_items}),
-                processing_time=total_processing_time,
+                processing_time=avg_processing_time,
                 status="completed",
                 completed_at=datetime.now(),
             ).model_dump()
@@ -113,7 +114,7 @@ def combine_processed_chunks(chunk_results: list[Any]) -> dict[str, Any]:
                 "status": "completed",
                 "total_chunks": len(sorted_results),
                 "total_items": total_items,
-                "total_processing_time": total_processing_time,
+                "avg_processing_time": avg_processing_time,
                 "job_id": job.id,
             }
 

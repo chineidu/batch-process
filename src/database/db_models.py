@@ -5,6 +5,7 @@ from typing import Any, Generator, TypeVar
 from pydantic import BaseModel
 from sqlalchemy import (
     JSON,
+    DateTime,
     Float,
     Integer,
     LargeBinary,
@@ -97,8 +98,8 @@ class NERResult(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     status: Mapped[str] = mapped_column(String(50))
     data: Mapped[dict[str, Any]] = mapped_column(JSON)
-    timestamp: Mapped[str | None] = mapped_column(default=func.now())
-    created_at: Mapped[str | None] = mapped_column("createdAt", default=func.now())
+    timestamp: Mapped[str | None] = mapped_column(DateTime(timezone=True), default=func.now())
+    created_at: Mapped[str | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
 
     def __repr__(self) -> str:
         """
@@ -121,8 +122,8 @@ class TaskResult(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending")
     result: Mapped[dict[str, Any]] = mapped_column(JSON)
     error_message: Mapped[str] = mapped_column("errorMessage", Text)
-    created_at: Mapped[str | None] = mapped_column("createdAt", default=func.now())
-    completed_at: Mapped[datetime] = mapped_column("completedAt", nullable=True)
+    created_at: Mapped[str | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
+    completed_at: Mapped[datetime] = mapped_column("completedAt", DateTime(timezone=True), nullable=True)
 
     def __repr__(self) -> str:
         """
@@ -146,8 +147,8 @@ class EmailLog(Base):
     subject: Mapped[str] = mapped_column(String(100))
     body: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    created_at: Mapped[datetime | None] = mapped_column("createdAt", default=func.now())
-    sent_at: Mapped[datetime] = mapped_column("sentAt", nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
+    sent_at: Mapped[datetime] = mapped_column("sentAt", DateTime(timezone=True), nullable=True)
 
     def __repr__(self) -> str:
         """
@@ -172,8 +173,8 @@ class DataProcessingJob(Base):
     output_data: Mapped[str] = mapped_column("outputData", Text)
     processing_time: Mapped[float] = mapped_column("processingTime", Float)
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    created_at: Mapped[datetime | None] = mapped_column("createdAt", default=func.now())
-    completed_at: Mapped[datetime] = mapped_column("completedAt", nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
+    completed_at: Mapped[datetime] = mapped_column("completedAt", DateTime(timezone=True), nullable=True)
 
     def __repr__(self) -> str:
         """
@@ -198,7 +199,7 @@ class CeleryTaskMeta(Base):
     task_id: Mapped[str] = mapped_column("taskId", String(255), unique=True, index=True)
     status: Mapped[str] = mapped_column(String(50), default="PENDING")
     result: MappedColumn[Any] = mapped_column(LargeBinary)
-    date_done: Mapped[str] = mapped_column("dateDone", nullable=True)
+    date_done: Mapped[str] = mapped_column("dateDone", DateTime(timezone=True), nullable=True)
     traceback: Mapped[str] = mapped_column(String)
     name: Mapped[str] = mapped_column(String(255))
     args: MappedColumn[Any] = mapped_column(LargeBinary)
