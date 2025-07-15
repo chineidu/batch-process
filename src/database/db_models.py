@@ -5,7 +5,6 @@ from typing import Any, Generator, TypeVar
 from pydantic import BaseModel
 from sqlalchemy import (
     JSON,
-    DateTime,
     Float,
     Integer,
     LargeBinary,
@@ -57,11 +56,8 @@ def get_db_pool() -> DatabasePool:
 
 @worker_process_init.connect
 def init_worker(**kwargs) -> None:
-    """Initialize the worker process by disposing of the database engine.
-
-    This function is triggered when a new worker process is initialized. It ensures
-    that the database connection pool is properly disposed of, which is necessary
-    for cleaning up any existing connections and freeing resources.
+    """Disposes of the database engine when a new worker process starts necessary for
+    cleaning up connections and freeing resources.
     """
 
     db_pool = get_db_pool()
@@ -70,15 +66,23 @@ def init_worker(**kwargs) -> None:
 
 @contextmanager
 def get_db_session() -> Generator[Session, None, None]:
-    """Get a database session - use this in your code."""
+    """Get a database session.
+
+    Yields
+    ------
+    Session
+        A database session
+    """
     db_pool = get_db_pool()
     with db_pool.get_session() as session:
         yield session
 
 
 def init_db() -> None:
-    """Initialize database tables."""
+    """This function is used to create the tables in the database.
+    It should be called once when the application starts."""
     db_pool = get_db_pool()
+    # Create all tables in the database
     Base.metadata.create_all(db_pool.engine)
     logger.info("Database initialized")
 
@@ -94,7 +98,7 @@ class NERResult(Base):
     status: Mapped[str] = mapped_column(String(50))
     data: Mapped[dict[str, Any]] = mapped_column(JSON)
     timestamp: Mapped[str | None] = mapped_column(default=func.now())
-    created_at: Mapped[str | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
+    created_at: Mapped[str | None] = mapped_column("createdAt", default=func.now())
 
     def __repr__(self) -> str:
         """
@@ -117,7 +121,7 @@ class TaskResult(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending")
     result: Mapped[dict[str, Any]] = mapped_column(JSON)
     error_message: Mapped[str] = mapped_column("errorMessage", Text)
-    created_at: Mapped[str | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
+    created_at: Mapped[str | None] = mapped_column("createdAt", default=func.now())
     completed_at: Mapped[datetime] = mapped_column("completedAt", nullable=True)
 
     def __repr__(self) -> str:
@@ -142,7 +146,7 @@ class EmailLog(Base):
     subject: Mapped[str] = mapped_column(String(100))
     body: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
+    created_at: Mapped[datetime | None] = mapped_column("createdAt", default=func.now())
     sent_at: Mapped[datetime] = mapped_column("sentAt", nullable=True)
 
     def __repr__(self) -> str:
@@ -168,7 +172,7 @@ class DataProcessingJob(Base):
     output_data: Mapped[str] = mapped_column("outputData", Text)
     processing_time: Mapped[float] = mapped_column("processingTime", Float)
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
+    created_at: Mapped[datetime | None] = mapped_column("createdAt", default=func.now())
     completed_at: Mapped[datetime] = mapped_column("completedAt", nullable=True)
 
     def __repr__(self) -> str:

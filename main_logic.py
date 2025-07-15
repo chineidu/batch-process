@@ -3,7 +3,7 @@ from typing import Any
 from src import create_logger
 from src.celery.tasks import process_large_dataset, send_bulk_emails, send_email
 
-logger = create_logger(name="worker")
+logger = create_logger(name="main")
 
 
 def main() -> None:
@@ -36,10 +36,10 @@ def main() -> None:
     logger.info(f"Bulk email result: {bulk_result.get(timeout=60)}")
 
     # ====== Example 3: Process large dataset ======
-    # logger.info("\n3. Processing large dataset...")
-    # large_data = list(range(100)) + [f"string_{i}" for i in range(50)]
-    # processing_result = process_large_dataset.delay(large_data, chunk_size=15)
-    # logger.info(f"Processing result: {processing_result.get(timeout=120)}")
+    logger.info("\n3. Processing large dataset...")
+    large_data = list(range(100)) + [f"string_{i}" for i in range(50)]
+    processing_result = process_large_dataset.delay(large_data, chunk_size=15)
+    logger.info(f"Processing result: {processing_result.get(timeout=120)}")
 
     logger.info("All tasks completed!")
 

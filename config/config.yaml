@@ -60,7 +60,7 @@ app_config:
           schedule: 3600
       health_check:
         task: src.celery.tasks.periodic_tasks.health_check
-        schedule: 120 #300
+        schedule: 180 # 3 minutes
 
     other_config:
       result_expires: 3600

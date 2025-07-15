@@ -123,7 +123,6 @@ def combine_processed_chunks(chunk_results: list[Any]) -> dict[str, Any]:
                 "total_items": total_items,
                 "total_processing_time": total_processing_time,
                 "job_id": job.id,
-                "data": combined_data,
             }
 
     except Exception as e:

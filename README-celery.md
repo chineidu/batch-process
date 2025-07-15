@@ -100,6 +100,11 @@ uv run main_logic.py
 
 ```sh
 uv run celery -A src.celery.app flower
+
+# With authentication
+export CELERY_FLOWER_USER=admin
+export CELERY_FLOWER_PASSWORD=password
+uv run celery -A src.celery.app flower --port:5555 --basic_auth=$CELERY_FLOWER_USER:$CELERY_FLOWER_PASSWORD
 ```
 
 ## Putting It All Together

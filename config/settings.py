@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     POSTGRES_DB: str
     POSTGRES_PORT: int
 
+    # ======= Celery settings =======
+    CELERY_FLOWER_USER: str
+    CELERY_FLOWER_PASSWORD: SecretStr
+
     @property
     def rabbitmq_url(self) -> str:
         """
