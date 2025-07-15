@@ -3,23 +3,20 @@ import time
 from datetime import datetime
 from typing import Any
 
-import numpy as np
-
 from celery import chord, current_task, group
 from schemas import DataProcessingSchema
 from src import create_logger
 from src.celery import celery_app
+from src.celery.tasks.email_tasks import EmailTask
 from src.database import get_db_session
 from src.database.db_models import DataProcessingJob
 
 logger = create_logger(name="data_processing")
 
-rng = np.random.default_rng(42)
-
 
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
 # meaning that we need to use `self` and this provides additional functionality like retries, etc
-@celery_app.task(bind=True)
+@celery_app.task(bind=True, base=EmailTask)
 def process_data_chunk(self, chunk_data: list[str], chunk_id: int) -> dict[str, Any | None | float | int]:  # noqa: ANN001, ARG001
     """
     Process a chunk of data
@@ -74,12 +71,7 @@ def process_data_chunk(self, chunk_data: list[str], chunk_id: int) -> dict[str, 
 
     except Exception as e:
         logger.error(f"Error processing chunk {chunk_id}: {e}")
-        return {
-            "chunk_id": chunk_id,
-            "processed_data": [],
-            "processing_time": None,
-            "items_count": None,
-        }
+        raise self.retry(exc=e) from e
 
 
 @celery_app.task
@@ -105,8 +97,8 @@ def combine_processed_chunks(chunk_results: list[Any]) -> dict[str, Any]:
             # Save to database
             data = DataProcessingSchema(
                 job_name="bulk_data_processing",
-                input_data=json.dumps({"chunks": len(sorted_results)}),
-                output_data=json.dumps({"total_items": total_items}),
+                input_data=json.dumps({"chunks": sorted_results}),
+                output_data=json.dumps({"combined_data": combined_data, "total_items": total_items}),
                 processing_time=total_processing_time,
                 status="completed",
                 completed_at=datetime.now(),

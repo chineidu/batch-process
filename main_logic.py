@@ -37,7 +37,7 @@ def main() -> None:
 
     # ====== Example 3: Process large dataset ======
     logger.info("\n3. Processing large dataset...")
-    large_data = list(range(100)) + [f"string_{i}" for i in range(50)]
+    large_data = list(range(100)) + [f"string_{i}" for i in range(80)]
     processing_result = process_large_dataset.delay(large_data, chunk_size=15)
     logger.info(f"Processing result: {processing_result.get(timeout=120)}")
 

@@ -18,10 +18,7 @@ rng = np.random.default_rng(42)
 
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
 # meaning that we need to use `self` and this provides additional functionality like retries, etc
-@celery_app.task(
-    bind=True,
-    base=EmailTask,
-)
+@celery_app.task(bind=True, base=EmailTask)
 def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:  # noqa: ANN001, ARG001
     """Send an email to a recipient with the given subject and body.
 
