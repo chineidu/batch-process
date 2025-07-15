@@ -7,16 +7,15 @@ from celery import chord, current_task, group
 from schemas import DataProcessingSchema
 from src import create_logger
 from src.celery import celery_app
-from src.celery.tasks.email_tasks import EmailTask
 from src.database import get_db_session
-from src.database.db_models import DataProcessingJob
+from src.database.db_models import BaseTask, DataProcessingJob
 
 logger = create_logger(name="data_processing")
 
 
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
 # meaning that we need to use `self` and this provides additional functionality like retries, etc
-@celery_app.task(bind=True, base=EmailTask)
+@celery_app.task(bind=True, base=BaseTask)
 def process_data_chunk(self, chunk_data: list[str], chunk_id: int) -> dict[str, Any | None | float | int]:  # noqa: ANN001, ARG001
     """
     Process a chunk of data

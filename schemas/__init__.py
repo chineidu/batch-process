@@ -1,5 +1,6 @@
 from schemas.input_schema import (  # type: ignore
     BaseSchema,
+    CeleryTasksLogSchema,
     DataProcessingSchema,
     EmailSchema,
     Float,
@@ -11,6 +12,7 @@ from schemas.output_schema import ModelOutput, MultiPredOutput, PredOutput  # ty
 
 __all__: list[str] = [
     "BaseSchema",
+    "CeleryTasksLogSchema",
     "DataProcessingSchema",
     "EmailSchema",
     "Float",

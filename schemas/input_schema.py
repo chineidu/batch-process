@@ -1,8 +1,9 @@
+import json
 from datetime import datetime
 from typing import Annotated, Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field  # type: ignore
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_serializer  # type: ignore
 from pydantic.alias_generators import to_camel
 
 
@@ -49,11 +50,6 @@ class PersonSchema(BaseSchema):
     survived: int = Field(default=0, description="Survival status of the passenger.")
     timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the entry.")
 
-    # @field_serializer("timestamp")
-    # def serialize_datetimes(self, v: datetime) -> str:
-    #     """Serializes datetime fields to ISO format."""
-    #     return v.isoformat()
-
 
 class MultiPersonsSchema(BaseSchema):
     """Schema for multiple people."""
@@ -61,7 +57,7 @@ class MultiPersonsSchema(BaseSchema):
     persons: list[PersonSchema] = Field(description="List of people.")
 
 
-class TaskSchema(BaseModel):
+class TaskSchema(BaseSchema):
     """Data schema for task results."""
 
     task_id: str = Field(default_factory=lambda: uuid4().hex, description="Task id")
@@ -73,7 +69,7 @@ class TaskSchema(BaseModel):
     completed_at: datetime | None = Field(default=None, description="Completion time")
 
 
-class EmailSchema(BaseModel):
+class EmailSchema(BaseSchema):
     """Data schema for email data."""
 
     recipient: str = Field(description="The recipient")
@@ -86,7 +82,7 @@ class EmailSchema(BaseModel):
     sent_at: datetime | None = Field(default=None, description="Time sent")
 
 
-class DataProcessingSchema(BaseModel):
+class DataProcessingSchema(BaseSchema):
     """Data schema for data processing job."""
 
     job_name: str = Field(description="The name of the job")
@@ -98,3 +94,24 @@ class DataProcessingSchema(BaseModel):
     )
     created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
     completed_at: datetime | None = Field(default=None, description="Completion time")
+
+
+class CeleryTasksLogSchema(BaseSchema):
+    task_id: str = Field(description="The task id")
+    task_name: str | None = Field(default=None, description="The task name")
+    status: Literal["PENDING", "STARTED", "SUCCESS", "FAILURE", "RETRY", "REVOKED"] = Field(
+        default="PENDING", description="Task status"
+    )
+    created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
+    updated_at: datetime | None = Field(default=None, description="Update time")
+    args: Any | None = Field(default=None, description="Task arguments")
+    kwargs: Any | None = Field(default=None, description="Task keyword arguments")
+    result: str | None = Field(default=None, description="Task result")
+    error: str | None = Field(default=None, description="Task error")
+
+    @field_serializer("args", "kwargs", "result", "error")
+    def serialize(self, value: Any) -> str:
+        """Serializes datetime fields to ISO format."""
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return json.dumps(value)

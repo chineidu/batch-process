@@ -1,12 +1,11 @@
 # app/tasks/periodic_tasks.py
-import logging
 from datetime import datetime, timedelta
 from typing import Any
 
 from src import create_logger
 from src.celery import celery_app
 from src.database import get_db_session
-from src.database.db_models import DataProcessingJob, EmailLog, TaskResult
+from src.database.db_models import BaseTask, CeleryTasksLog, DataProcessingJob, EmailLog, TaskResult
 
 logger = create_logger(name="periodic_tasks")
 
@@ -44,8 +43,8 @@ def cleanup_old_records() -> dict[str, Any]:
         raise
 
 
-@celery_app.task
-def health_check() -> dict[str, Any] | dict[str, str]:
+@celery_app.task(bind=True, base=BaseTask)
+def health_check(self) -> dict[str, Any] | dict[str, str]:  # noqa: ANN001, ARG001
     """
     Perform system health check
     """
@@ -57,7 +56,9 @@ def health_check() -> dict[str, Any] | dict[str, str]:
             session.execute(text("SELECT 1"))
 
             # Get some statistics
-            total_tasks = session.query(TaskResult).count()
+            total_tasks = (
+                session.query(CeleryTasksLog).where(CeleryTasksLog.task_name.not_like(r"%health_check%")).count()
+            )
             recent_emails = (
                 session.query(EmailLog).where(EmailLog.created_at > (datetime.now() - timedelta(hours=24))).count()
             )

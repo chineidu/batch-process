@@ -7,9 +7,9 @@ import numpy as np
 from celery import group
 from schemas import EmailSchema
 from src import create_logger
-from src.celery import EmailTask, celery_app
+from src.celery import celery_app
 from src.database import get_db_session
-from src.database.db_models import EmailLog
+from src.database.db_models import BaseTask, EmailLog
 
 logger = create_logger()
 
@@ -18,7 +18,7 @@ rng = np.random.default_rng(42)
 
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
 # meaning that we need to use `self` and this provides additional functionality like retries, etc
-@celery_app.task(bind=True, base=EmailTask)
+@celery_app.task(bind=True, base=BaseTask)
 def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:  # noqa: ANN001, ARG001
     """Send an email to a recipient with the given subject and body.
 

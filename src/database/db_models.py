@@ -19,7 +19,9 @@ from sqlalchemy.orm.properties import MappedColumn
 from celery.signals import worker_process_init
 from config import app_config
 from config.settings import refresh_settings
+from schemas import CeleryTasksLogSchema
 from src import create_logger
+from src.celery import CustomTask
 
 from .utilities import DatabasePool
 
@@ -219,3 +221,166 @@ class CeleryTaskMeta(Base):
         return (
             f"{self.__class__.__name__}(task_id={self.task_id!r}, date_done={self.date_done!r} status={self.status!r})"
         )
+
+
+class CeleryTasksLog(Base):
+    """Data model for storing Celery task meta."""
+
+    __tablename__: str = "celery_tasks_log"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[str] = mapped_column("taskId", String(255), unique=True, index=True)
+    task_name: Mapped[str] = mapped_column("taskName", String(255), index=True)
+    status: Mapped[str] = mapped_column(String(50), default="PENDING")
+    created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column("updatedAt", DateTime(timezone=True), nullable=True)
+    args: MappedColumn[Any] = mapped_column(Text, nullable=True)
+    kwargs: MappedColumn[Any] = mapped_column(Text, nullable=True)
+    result: MappedColumn[Any] = mapped_column(Text, nullable=True)
+    error: Mapped[str] = mapped_column(Text, nullable=True)
+
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of the email log.
+
+        Returns
+        -------
+        str
+        """
+        return f"{self.__class__.__name__}(task_id={self.task_id!r}, created_at={self.created_at!r} status={self.status!r})"
+
+
+# ===== Mixins =====
+class DatabaseLoggingMixin:
+    def _save_log(self, task_id: str, status: str, **extra_data: dict[str, Any]) -> None:
+        try:
+            with get_db_session() as session:
+                statement = session.query(CeleryTasksLog).where(CeleryTasksLog.task_id == task_id)
+                existing_log = session.execute(statement).scalar_one_or_none()
+                if existing_log:
+                    # Update log
+                    existing_log.status = status
+                    existing_log.updated_at = datetime.now()
+                    for key, value in extra_data.items():
+                        setattr(existing_log, key, value)
+                else:
+                    # Create new log
+                    _data = {
+                        "task_id": task_id,
+                        "status": status,
+                        "updated_at": datetime.now(),
+                    } | extra_data
+                    data = CeleryTasksLogSchema(**_data).model_dump()  # type: ignore
+                    new_log = CeleryTasksLog(**data)
+                    session.add(new_log)
+                    session.flush()
+        except Exception as e:
+            logger.error(f"Failed to save log: {e}")
+
+    def on_success(self, retval: Any, task_id: str, args: Any, kwargs: Any) -> None:
+        """Saves the task exception and keyword arguments to the database on success.
+
+        Parameters
+        ----------
+        retval : Any
+            The return value of the task.
+        task_id : str
+            The unique ID of the task.
+        args : Any
+            The positional arguments passed to the task.
+        kwargs : Any
+            The keyword arguments passed to the task.
+
+        Returns
+        -------
+        None
+            This method does not return any value.
+
+        Notes
+        -----
+        This method overrides the `on_success` method from the parent class
+        and ensures that the parent's `on_success` is called if it exists.
+        The signature must match the parent's `on_success` method.
+        """
+        retval = str(retval)[:1_000]  # Truncate long results
+        task_name = self.name  # type: ignore
+        self._save_log(task_id, task_name=task_name, status="SUCCESS", result=retval, args=args, kwargs=kwargs)
+        # Call paret's on_success method if it exists
+        if hasattr(super(), "on_success"):
+            super().on_success(retval, task_id, args, kwargs)  # type: ignore
+
+    def on_failure(self, exc: Any, task_id: str, args: Any, kwargs: Any, einfo: Any) -> None:
+        """Saves the task exception and keyword arguments to the database on failure.
+
+        Parameters
+        ----------
+        exc : Any
+            The exception that was raised by the task.
+        task_id : str
+            The unique ID of the task.
+        args : Any
+            The positional arguments passed to the task.
+        kwargs : Any
+            The keyword arguments passed to the task.
+        einfo : Any
+            Exception information, including traceback.
+
+        Returns
+        -------
+        None
+            This method does not return any value.
+
+        Notes
+        -----
+        This method overrides the `on_failure` method from the parent class
+        and ensures that the parent's `on_failure` is called if it exists.
+        The signature must match the parent's `on_failure` method.
+        """
+        einfo = str(einfo)[:1_000]  # Truncate long results
+        task_name = self.name  # type: ignore
+        self._save_log(task_id, task_name=task_name, status="FAILURE", args=args, kwargs=kwargs, error=einfo)
+        # Call paret's on_failure method if it exists
+        if hasattr(super(), "on_failure"):
+            super().on_failure(exc, task_id, args, kwargs, einfo)  # type: ignore
+
+    def on_retry(self, exc: Any, task_id: str, args: Any, kwargs: Any, einfo: Any) -> None:
+        """Saves the task exception and keyword arguments to the database on retry.
+
+        Parameters
+        ----------
+        exc : Any
+            The exception that was raised by the task.
+        task_id : str
+            The unique ID of the task.
+        args : Any
+            The positional arguments passed to the task.
+        kwargs : Any
+            The keyword arguments passed to the task.
+        einfo : Any
+            Exception information, including traceback.
+
+        Returns
+        -------
+        None
+            This method does not return any value.
+
+        Notes
+        -----
+        This method overrides the `on_retry` method from the parent class
+        and ensures that the parent's `on_retry` is called if it exists.
+        The signature must match the parent's `on_retry` method.
+        """
+        einfo = str(einfo)[:1_000]  # Truncate long results
+        task_name = self.name  # type: ignore
+        self._save_log(task_id, task_name=task_name, status="RETRY", args=args, kwargs=kwargs, error=einfo)
+        # Call paret's on_retry method if it exists
+        if hasattr(super(), "on_retry"):
+            super().on_retry(exc, task_id, args, kwargs, einfo)  # type: ignore
+
+
+class BaseTask(DatabaseLoggingMixin, CustomTask):
+    """Base class for tasks with database logging capabilities.
+
+    Adds on_success, on_failure, and on_retry methods that save the task log to the database.
+    """
+
+    pass
