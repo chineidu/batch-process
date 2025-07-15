@@ -3,10 +3,12 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any
 
-from schemas.db_models import DataProcessingJob, EmailLog, TaskResult, get_db_session
+from src import create_logger
 from src.celery import celery_app
+from src.database import get_db_session
+from src.database.db_models import DataProcessingJob, EmailLog, TaskResult
 
-logger = logging.getLogger(__name__)
+logger = create_logger(name="periodic_tasks")
 
 
 @celery_app.task

@@ -7,11 +7,12 @@ import numpy as np
 
 from celery import chord, current_task, group
 from schemas import DataProcessingSchema
-from schemas.db_models import DataProcessingJob, get_db_session
 from src import create_logger
 from src.celery import celery_app
+from src.database import get_db_session
+from src.database.db_models import DataProcessingJob
 
-logger = create_logger()
+logger = create_logger(name="data_processing")
 
 rng = np.random.default_rng(42)
 

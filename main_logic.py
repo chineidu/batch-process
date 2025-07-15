@@ -1,6 +1,5 @@
 from typing import Any
 
-from schemas.db_models import init_db
 from src import create_logger
 from src.celery.tasks import process_large_dataset, send_bulk_emails, send_email
 
@@ -11,21 +10,21 @@ def main() -> None:
     """Main function to run the Celery tasks."""
 
     # ====== Example 1: Send a single email ======
-    # logger.info("\n1. Sending single email...")
-    # result = send_email.delay(
-    #     recipient="user@example.com",
-    #     subject="Test Email",
-    #     body="This is a test single email from Celery!",
-    # )
-    # logger.info(f"Task ID: {result.id}")
-    # try:
-    #     task_result = result.get(timeout=30)
-    #     logger.info(f"Result: {task_result}")
-    # except Exception as e:
-    #     logger.error(f"Task failed with error: {e}")
-    #     logger.error(f"Task state: {result.state}")
-    #     if hasattr(result, "traceback"):
-    #         logger.error(f"Traceback: {result.traceback}")
+    logger.info("\n1. Sending single email...")
+    result = send_email.delay(
+        recipient="user@example.com",
+        subject="Test Email",
+        body="This is a test single email from Celery!",
+    )
+    logger.info(f"Task ID: {result.id}")
+    try:
+        task_result = result.get(timeout=30)
+        logger.info(f"Result: {task_result}")
+    except Exception as e:
+        logger.error(f"Task failed with error: {e}")
+        logger.error(f"Task state: {result.state}")
+        if hasattr(result, "traceback"):
+            logger.error(f"Traceback: {result.traceback}")
 
     # ===== Example 2: Send emails in bulk ======
     logger.info("\n2. Sending bulk emails...")

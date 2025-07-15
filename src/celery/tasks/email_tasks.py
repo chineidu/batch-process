@@ -5,11 +5,11 @@ from typing import Any
 import numpy as np
 
 from celery import group
-from celery.exceptions import Retry
 from schemas import EmailSchema
-from schemas.db_models import EmailLog, get_db_session
 from src import create_logger
 from src.celery import EmailTask, celery_app
+from src.database import get_db_session
+from src.database.db_models import EmailLog
 
 logger = create_logger()
 
@@ -18,7 +18,10 @@ rng = np.random.default_rng(42)
 
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
 # meaning that we need to use `self` and this provides additional functionality like retries, etc
-@celery_app.task(bind=True, base=EmailTask)
+@celery_app.task(
+    bind=True,
+    base=EmailTask,
+)
 def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:  # noqa: ANN001, ARG001
     """Send an email to a recipient with the given subject and body.
 
@@ -40,7 +43,6 @@ def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:
     data: dict[str, Any] = {
         "recipient": recipient,
         "subject": subject,
-        "status": "processing",
         "body": body,
     }
     data_dict: dict[str, Any] = EmailSchema(**data).model_dump()
@@ -54,28 +56,12 @@ def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:
             email_id = email_log.id
     except Exception as e:
         logger.error(f" [x] Error logging email: {e}")
+        # Trigger retry
+        raise self.retry(exc=e) from e
 
     try:
         # Simulate email sending process
         time.sleep(2)
-
-        # Simulate email sending failure
-        if rng.random() < 0.005:
-            try:
-                if email_id is not None:
-                    with get_db_session() as db:
-                        # Update successful task with sent time
-                        sent_at: datetime = datetime.now()
-                        status: str = "failed"
-                        db.query(EmailLog).where(EmailLog.id == email_id).update({
-                            EmailLog.sent_at: sent_at,
-                            EmailLog.status: status,
-                        })
-            except Exception as db_error:
-                logger.error(f" [x] Error updating email status in database: {db_error}")
-
-            logger.error(f"Error sending email to {data_dict.get('recipient')}")
-            raise  # Trigger retry
 
         # Update successful task with sent time
         sent_at = datetime.now()
@@ -89,6 +75,7 @@ def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:
                     })
             except Exception as db_error:
                 logger.error(f" [x] Error updating email status in database: {db_error}")
+                raise self.retry(exc=db_error) from db_error
 
             logger.info(f" [+] Email sent to {data_dict.get('recipient')}")
 
@@ -101,11 +88,7 @@ def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:
 
     except Exception as e:
         logger.error(f" [x] Error sending email: {e}")
-        try:
-            raise self.retry(exc=e)
-        except Retry as retry_exc:
-            logger.info(f"Task {self.request.id} will retry in {retry_exc.humanize()} seconds...")
-            raise  # Trigger retry
+        raise self.retry(exc=e, countdown=5) from e
 
 
 @celery_app.task
