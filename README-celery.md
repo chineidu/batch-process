@@ -13,6 +13,7 @@
       - [Beat Scheduler](#beat-scheduler)
     - [Start The Producer](#start-the-producer)
     - [Monitor Tasks](#monitor-tasks)
+      - [Built-in Task State Tracker](#built-in-task-state-tracker)
   - [Putting It All Together](#putting-it-all-together)
 
 ## Introduction
@@ -105,6 +106,20 @@ uv run celery -A src.celery.app flower
 export CELERY_FLOWER_USER=admin
 export CELERY_FLOWER_PASSWORD=password
 uv run celery -A src.celery.app flower --port:5555 --basic_auth=$CELERY_FLOWER_USER:$CELERY_FLOWER_PASSWORD
+```
+
+#### Built-in Task State Tracker
+
+```py
+from celery.result import AsyncResult
+
+# Get task result object
+result = AsyncResult(task_id)
+
+# Check status
+print(result.status)  # PENDING, STARTED, SUCCESS, FAILURE, RETRY, REVOKED
+print(result.info)    # Additional info about the task
+print(result.ready()) # True if task has finished
 ```
 
 ## Putting It All Together
