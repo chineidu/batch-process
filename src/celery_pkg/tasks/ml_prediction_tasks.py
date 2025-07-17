@@ -45,6 +45,7 @@ def process_single_data(self, data: dict[str, Any]) -> dict[str, Any]:  # noqa: 
         record = PersonSchema(**data)
         data_dict: dict[str, Any] = _get_prediction(record, model_dict)[0]
         response: dict[str, Any] = ModelOutput(**{"data": data_dict, "status": "success"}).model_dump()  # type: ignore
+        logger.info("[+] Successfully processed data")
         return {
             "status": "success",
             "response": response,
@@ -52,7 +53,7 @@ def process_single_data(self, data: dict[str, Any]) -> dict[str, Any]:  # noqa: 
         }
 
     except Exception as e:
-        logger.error("Error processing data")
+        logger.error("[+] Error processing data")
         raise self.retry(exc=e) from e
 
 
@@ -114,7 +115,7 @@ def process_ml_data_chunk(self, chunk_data: list[dict[str, Any]], chunk_id: int)
         }
 
     except Exception as e:
-        logger.error(f"Error processing data chunk {chunk_id}: {e}")
+        logger.error(f"[+] Error processing data chunk {chunk_id}: {e}")
         raise self.retry(exc=e) from e
 
 
@@ -173,7 +174,7 @@ def combine_processed_chunks(chunked_results: list[dict[str, Any]]) -> dict[str,
             "item_count": item_count,
         }
     except Exception as e:
-        logger.error(f"Error combining processed chunks: {e}")
+        logger.error(f"[+] Error combining processed chunks: {e}")
         raise e
 
 
@@ -193,16 +194,20 @@ def process_bulk_data(data: list[dict[str, Any]]) -> dict[str, Any]:
         Dictionary containing the dispatch status, total number of items, number of chunks,
         and the group ID for tracking the job.
     """
+    try:
 
-    job = group(process_ml_data_chunk.s(chunk, i) for i, chunk in enumerate(data))
-    result = job.apply_async()
-    return {
-        "status": "dispatched",
-        "total_items": len(data),
-        "chunks": len(data),
-        "group_id": result.id,
-    }
+        job = group(process_ml_data_chunk.s(chunk, i) for i, chunk in enumerate(data))
+        result = job.apply_async()
+        return {
+            "status": "dispatched",
+            "total_items": len(data),
+            "chunks": len(data),
+            "group_id": result.id,
+        }
 
+    except Exception as e:
+        logger.error(f"[+] Error dispatching bulk data processing: {e}")
+        raise
 
 @celery_app.task
 def ml_process_large_dataset(data: list[Any], chunk_size: int = 10) -> dict[str, Any]:
@@ -229,5 +234,5 @@ def ml_process_large_dataset(data: list[Any], chunk_size: int = 10) -> dict[str,
         }
 
     except Exception as e:
-        logger.error(f"Error dispatching large dataset processing: {e}")
+        logger.error(f"[+] Error dispatching large dataset processing: {e}")
         raise

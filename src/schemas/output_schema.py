@@ -1,7 +1,8 @@
+import json
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import Field, field_serializer
 
 from src.schemas import BaseSchema, Float
 
@@ -38,3 +39,43 @@ class HealthCheck(BaseSchema):
 
     status: str = "healthy"
     version: str = "0.1.0"
+
+class TaskStatusSchema(BaseSchema):
+    """
+    Data schema for task status.
+
+    Parameters
+    ----------
+    task_id : str
+        Task id
+    status : Literal["PENDING", "STARTED", "SUCCESS", "FAILURE"]
+        Task status, default is "PENDING"
+    result : dict[str, Any]
+        Task result, default is an empty dictionary
+
+    Methods
+    -------
+    serialize(self, value: Any) -> str
+        Serialize task result to a string
+    """
+
+    task_id: str = Field(description="Task id")
+    status: Literal["PENDING", "STARTED", "SUCCESS", "FAILURE"] = Field(default="PENDING", description="Task status")
+    result: dict[str, Any] = Field(default_factory=dict, description="Task result")
+
+    @field_serializer("result")
+    def serialize(self, value: Any) -> str:
+        """
+        Serialize task result to a string
+
+        Parameters
+        ----------
+        value : Any
+            The value to serialize
+
+        Returns
+        -------
+        str
+            The serialized value
+        """
+        return json.dumps(value)

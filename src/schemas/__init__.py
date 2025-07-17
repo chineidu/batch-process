@@ -3,21 +3,29 @@ from src.schemas.input_schema import (  # type: ignore
     CeleryTasksLogSchema,
     EmailSchema,
     Float,
+    GetTaskSchema,
     JobProcessingSchema,
     MultiPersonsSchema,
     PersonSchema,
     SinglePersonSchema,
     TaskSchema,
 )
-from src.schemas.output_schema import HealthCheck, ModelOutput, MultiPredOutput, PredOutput  # type: ignore
+from src.schemas.output_schema import (  # type: ignore
+    HealthCheck,
+    ModelOutput,
+    MultiPredOutput,
+    PredOutput,
+    TaskStatusSchema,
+)
 
 __all__: list[str] = [
     "BaseSchema",
     "CeleryTasksLogSchema",
-    "JobProcessingSchema",
     "EmailSchema",
     "Float",
+    "GetTaskSchema",
     "HealthCheck",
+    "JobProcessingSchema",
     "ModelOutput",
     "MultiPersonsSchema",
     "MultiPredOutput",
@@ -25,4 +33,5 @@ __all__: list[str] = [
     "PredOutput",
     "SinglePersonSchema",
     "TaskSchema",
+    "TaskStatusSchema",
 ]

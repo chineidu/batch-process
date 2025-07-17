@@ -9,7 +9,7 @@ logger = create_logger(name="prediction")
 router = APIRouter(tags=["prediction"])
 
 @router.post("/predict-single", status_code=status.HTTP_200_OK)
-def predict_single(data: SinglePersonSchema) -> None:
+async def predict_single(data: SinglePersonSchema) -> None:
     """
     Handle a POST request to make a single prediction.
 
@@ -24,7 +24,7 @@ def predict_single(data: SinglePersonSchema) -> None:
         The result of the prediction, containing the status and response.
 
     Raises
-    ------
+    ------ 
     Exception
         If there is an error during prediction processing or the task times out.
     """

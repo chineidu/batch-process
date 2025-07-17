@@ -156,3 +156,23 @@ class CeleryTasksLogSchema(BaseSchema):
     kwargs: Any | None = Field(default=None, description="Task keyword arguments")
     result: str | None = Field(default=None, description="Task result")
     error: str | None = Field(default=None, description="Task error")
+
+
+# ====== API ENDPOINTS ======
+class GetTaskSchema(BaseSchema):
+    """
+    Data schema for task status.
+
+    Parameters
+    ----------
+    task_id : str
+        Task id
+    """
+
+    task_id: str = Field(description="Task id")
+
+    class Config:
+        validate_by_name = True
+        json_schema_extra = {
+            "examples": [{"task_id": "your_task_id"}],
+        }
