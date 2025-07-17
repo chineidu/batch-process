@@ -23,7 +23,7 @@ services:
     # Remove name to allow Docker to automatically generate a name
     # when you have more than one replica
     # container_name: local-rmq-worker
-    container_name: backend
+    container_name: database
     env_file:
       - .env
     ports:
