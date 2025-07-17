@@ -8,7 +8,7 @@ from src.schemas.input_schema import (  # type: ignore
     PersonSchema,
     TaskSchema,
 )
-from src.schemas.output_schema import ModelOutput, MultiPredOutput, PredOutput  # type: ignore
+from src.schemas.output_schema import HealthCheck, ModelOutput, MultiPredOutput, PredOutput  # type: ignore
 
 __all__: list[str] = [
     "BaseSchema",
@@ -16,6 +16,7 @@ __all__: list[str] = [
     "JobProcessingSchema",
     "EmailSchema",
     "Float",
+    "HealthCheck",
     "PersonSchema",
     "PredOutput",
     "ModelOutput",

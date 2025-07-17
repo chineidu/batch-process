@@ -18,7 +18,49 @@ logger = create_logger(name="ml_prediction")
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
 # meaning that we need to use `self` and this provides additional functionality like retries, etc
 @celery_app.task(bind=True, base=MLTask)
-def process_data_chunk(self, chunk_data: list[dict[str, Any]], chunk_id: int) -> dict[str, Any]:  # noqa: ANN001, ARG001
+def process_single_data(self, data: dict[str, Any]) -> dict[str, Any]:  # noqa: ANN001, ARG001
+    """
+    Process a single person data.
+
+    Parameters
+    ----------
+    data : dict[str, Any]
+        Dictionary containing person data.
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary containing processed data and status.
+
+    Raises
+    ------
+    Exception
+        Any error that occurs during data processing.
+    """
+    try:
+        # Load model
+        model_dict: dict[str, Any] = self.model_dict
+
+        # Data processing
+        record = PersonSchema(**data)
+        data_dict: dict[str, Any] = _get_prediction(record, model_dict)[0]
+        response: dict[str, Any] = ModelOutput(**{"data": data_dict, "status": "success"}).model_dump()  # type: ignore
+        return {
+            "status": "success",
+            "response": response,
+            "subject": data_dict.get("subject"),
+            "sent_at": datetime.now().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error("Error processing data")
+        raise self.retry(exc=e) from e
+
+
+# Note: When `bind=True`, celery automatically passes the task instance as the first argument
+# meaning that we need to use `self` and this provides additional functionality like retries, etc
+@celery_app.task(bind=True, base=MLTask)
+def process_ml_data_chunk(self, chunk_data: list[dict[str, Any]], chunk_id: int) -> dict[str, Any]:  # noqa: ANN001, ARG001
     """
     Process a chunk of data and return the processed data, processing time, and item count.
 
@@ -137,6 +179,33 @@ def combine_processed_chunks(chunked_results: list[dict[str, Any]]) -> dict[str,
 
 
 @celery_app.task
+def process_bulk_data(data: list[dict[str, Any]]) -> dict[str, Any]:
+    """
+    Dispatch a bulk data processing job using Celery.
+
+    Parameters
+    ----------
+    data : list[dict[str, Any]]
+        List of data dictionaries to be processed in bulk.
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary containing the dispatch status, total number of items, number of chunks,
+        and the group ID for tracking the job.
+    """
+
+    job = group(process_ml_data_chunk.s(chunk, i) for i, chunk in enumerate(data))
+    result = job.apply_async()
+    return {
+        "status": "dispatched",
+        "total_items": len(data),
+        "chunks": len(data),
+        "group_id": result.id,
+    }
+
+
+@celery_app.task
 def ml_process_large_dataset(data: list[Any], chunk_size: int = 10) -> dict[str, Any]:
     """
     Process a large dataset by splitting into chunks and using chord
@@ -147,7 +216,7 @@ def ml_process_large_dataset(data: list[Any], chunk_size: int = 10) -> dict[str,
 
         # Create a chord: process chunks in parallel, then combine results
         job = chord(
-            group(process_data_chunk.s(chunk, i) for i, chunk in enumerate(chunks)),
+            group(process_ml_data_chunk.s(chunk, i) for i, chunk in enumerate(chunks)),
             combine_processed_chunks.s(),
         )
 

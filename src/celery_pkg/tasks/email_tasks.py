@@ -11,7 +11,7 @@ from src.database import get_db_session
 from src.database.db_models import BaseTask, EmailLog
 from src.schemas import EmailSchema
 
-logger = create_logger()
+logger = create_logger(name="email_tasks")
 
 rng = np.random.default_rng(42)
 

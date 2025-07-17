@@ -131,6 +131,44 @@ class CeleryConfig(BaseSchema):
     other_config: OtherConfig = Field(description="Other configuration")
 
 
+class Server(BaseSchema):
+    """Server configuration class."""
+
+    host: str
+    port: int
+    workers: int
+    reload: bool
+
+
+class CORS(BaseSchema):
+    """CORS configuration class."""
+
+    allow_origins: list[str]
+    allow_credentials: bool
+    allow_methods: list[str]
+    allow_headers: list[str]
+
+
+class Middleware(BaseSchema):
+    """Middleware configuration class."""
+
+    cors: CORS
+
+
+class APIConfig(BaseSchema):
+    """API configuration class."""
+
+    title: str
+    name: str
+    description: str
+    version: str
+    status: str
+    batch_size: int
+    prefix: str
+    server: Server
+    middleware: Middleware
+
+
 class AppConfig(BaseSchema):
     """Application configuration class."""
 
@@ -138,9 +176,12 @@ class AppConfig(BaseSchema):
     db: DB = Field(description="Database configuration")
     model: Model = Field(description="Model configuration")
     celery_config: CeleryConfig = Field(description="Celery configuration")
+    api_config: APIConfig = Field(description="API configuration")
 
 
 config_path: Path = PACKAGE_PATH / "src/config/config.yaml"
 config: DictConfig = OmegaConf.load(config_path).app_config
-
-app_config: AppConfig = AppConfig(**config)  # type: ignore
+# Resolve all the variables
+resolved_cfg = OmegaConf.to_container(config, resolve=True)
+# Validate the config
+app_config: AppConfig = AppConfig(**dict(resolved_cfg))  # type: ignore

@@ -45,3 +45,13 @@ class MultiPredOutput(BaseSchema):
     outputs: list[ModelOutput] = Field(  # type: ignore
         default_factory=list, description="List of prediction outputs."
     )
+
+
+# ====== API ENDPOINTS ======
+class HealthCheck(BaseSchema):
+    """
+    Health check response model.
+    """
+
+    status: str = "healthy"
+    version: str = "0.1.0"

@@ -50,6 +50,23 @@ class PersonSchema(BaseSchema):
     survived: int = Field(default=0, description="Survival status of the passenger.")
     created_at: datetime = Field(alias="createdAt", default_factory=datetime.now, description="Timestamp of the entry.")
 
+    class Config:
+        allow_population_by_field_name = True
+        json_schema_extra = {
+            "examples": [
+                {
+                    "person_id": "1",
+                    "sex": "male",
+                    "age": 22,
+                    "pclass": 1,
+                    "sibsp": 1,
+                    "parch": 0,
+                    "fare": 7.25,
+                    "embarked": "s",
+                }
+            ]
+        }
+
 
 class MultiPersonsSchema(BaseSchema):
     """Schema for multiple people."""

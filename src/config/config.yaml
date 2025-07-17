@@ -19,7 +19,6 @@ app_config:
       - embarked
 
   db:
-    # db_path: db/results.db
     db_path: sqlite:///results.db
     max_connections: 5
 
@@ -68,3 +67,27 @@ app_config:
       result_backend_always_retry: true
       result_persistent: true
       result_backend_max_retries: 3
+
+  api_config:
+    title: Data Processing API
+    name: ${.title}
+    description: API for processing large datasets
+    version: v0.2.5
+    status: healthy
+    batch_size: 5
+    prefix: /api/v1
+
+    # Server Settings
+    server:
+      host: 0.0.0.0
+      port: 8000
+      workers: 1
+      reload: false
+
+    # Middleware Configuration
+    middleware:
+      cors:
+        allow_origins: ["*"]
+        allow_credentials: true
+        allow_methods: ["*"]
+        allow_headers: ["*"]
