@@ -5,7 +5,7 @@ from typing import Any
 from src import create_logger
 from src.celery import celery_app
 from src.database import get_db_session
-from src.database.db_models import BaseTask, CeleryTasksLog, DataProcessingJob, EmailLog, TaskResult
+from src.database.db_models import BaseTask, CeleryTasksLog, DataProcessingJobLog, EmailLog, TaskResult
 
 logger = create_logger(name="periodic_tasks")
 
@@ -28,8 +28,8 @@ def cleanup_old_records() -> dict[str, Any]:
             session.query(EmailLog).where(EmailLog.created_at < cutoff_date).delete()
 
             # === Clean up old task results: Get count and delete ===
-            old_jobs = session.query(DataProcessingJob).where(DataProcessingJob.created_at < cutoff_date).count()
-            session.query(DataProcessingJob).where(DataProcessingJob.created_at < cutoff_date).delete()
+            old_jobs = session.query(DataProcessingJobLog).where(DataProcessingJobLog.created_at < cutoff_date).count()
+            session.query(DataProcessingJobLog).where(DataProcessingJobLog.created_at < cutoff_date).delete()
 
             logger.info(f"Cleaned up {old_tasks} task results, {old_emails} email logs, {old_jobs} processing jobs")
 
@@ -62,7 +62,7 @@ def health_check(self) -> dict[str, Any] | dict[str, str]:  # noqa: ANN001, ARG0
             recent_emails = (
                 session.query(EmailLog).where(EmailLog.created_at > (datetime.now() - timedelta(hours=24))).count()
             )
-            active_jobs = session.query(DataProcessingJob).where(DataProcessingJob.status == "pending").count()
+            active_jobs = session.query(DataProcessingJobLog).where(DataProcessingJobLog.status == "pending").count()
 
             logger.info("Health check completed successfully")
 

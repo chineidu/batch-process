@@ -15,6 +15,24 @@ __all__ = ["celery_app", "BaseCustomTask", "BaseMLTask"]
 
 
 class BaseCustomTask(Task):
+    """
+    A custom base task class for Celery tasks with automatic retry configuration.
+
+    Attributes
+    ----------
+    autoretry_for : tuple
+        A tuple of exception types for which the task should automatically retry.
+    throws : tuple
+        A tuple of exception types for which full traceback should be logged on retry.
+    default_retry_delay : int
+        The default delay between retries in seconds.
+    max_retries : int
+        The maximum number of retries allowed for the task.
+    retry_backoff : bool
+        Enables exponential backoff for retry delays.
+    retry_backoff_max : int
+        The maximum delay in seconds for exponential backoff.
+    """
     autoretry_for = (Exception,)
     throws = (Exception,)  # Log full traceback on retry
     default_retry_delay = 30  # 30 seconds
@@ -24,6 +42,13 @@ class BaseCustomTask(Task):
 
 
 class BaseMLTask:
+    """
+    A singleton class that provides access to a machine learning model dictionary.
+
+    This class ensures that the model dictionary is loaded only once and reused
+    throughout the application's lifecycle.
+    """
+
     _instance: BaseMLTask | None = None
     _model_dict: dict[str, Any] | None = None
     _is_initialized: bool = False
@@ -35,8 +60,9 @@ class BaseMLTask:
             cls._instance._load_model_dict()  # noqa: SLF001
 
         return cls._instance
-    
+
     def __init__(self) -> None:
+        """Initialize the BaseMLTask instance."""
         if not self._is_initialized:
             self._is_initialized = True
 
@@ -48,7 +74,7 @@ class BaseMLTask:
 
     @property
     def model_dict(self) -> dict[str, Any]:
-        """Return the model dictionary."""
+        """Return the model dictionary, loading it if necessary."""
         if self._model_dict is None:
             self._load_model_dict()
         return self._model_dict  # type: ignore

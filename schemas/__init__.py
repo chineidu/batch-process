@@ -1,9 +1,9 @@
 from schemas.input_schema import (  # type: ignore
     BaseSchema,
     CeleryTasksLogSchema,
-    DataProcessingSchema,
     EmailSchema,
     Float,
+    JobProcessingSchema,
     MultiPersonsSchema,
     PersonSchema,
     TaskSchema,
@@ -13,7 +13,7 @@ from schemas.output_schema import ModelOutput, MultiPredOutput, PredOutput  # ty
 __all__: list[str] = [
     "BaseSchema",
     "CeleryTasksLogSchema",
-    "DataProcessingSchema",
+    "JobProcessingSchema",
     "EmailSchema",
     "Float",
     "PersonSchema",

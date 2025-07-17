@@ -39,7 +39,7 @@ Float = Annotated[float, BeforeValidator(round_probability)]
 class PersonSchema(BaseSchema):
     """Schema for a person."""
 
-    id: str | None = Field(alias="personId", default=None, description="Unique identifier for the person.")
+    person_id: str | None = Field(default=None, description="Unique identifier for the person.")
     sex: Literal["male", "female"] = Field(description="Sex of the passenger.")
     age: Float = Field(description="Age of the passenger.")
     pclass: int = Field(description="Passenger class.")
@@ -48,7 +48,7 @@ class PersonSchema(BaseSchema):
     fare: Float = Field(description="Fare paid for the ticket.")
     embarked: Literal["s", "c", "q"] = Field(description="Port of embarkation.")
     survived: int = Field(default=0, description="Survival status of the passenger.")
-    timestamp: datetime = Field(alias="createdAt", default_factory=datetime.now, description="Timestamp of the entry.")
+    created_at: datetime = Field(alias="createdAt", default_factory=datetime.now, description="Timestamp of the entry.")
 
 
 class MultiPersonsSchema(BaseSchema):
@@ -82,7 +82,7 @@ class EmailSchema(BaseSchema):
     sent_at: datetime | None = Field(default=None, description="Time sent")
 
 
-class DataProcessingSchema(BaseSchema):
+class JobProcessingSchema(BaseSchema):
     """Data schema for data processing job."""
 
     job_name: str = Field(description="The name of the job")
@@ -97,12 +97,13 @@ class DataProcessingSchema(BaseSchema):
 
 
 class CeleryTasksLogSchema(BaseSchema):
+    """Data schema for celery task logs."""
+
     task_id: str = Field(description="The task id")
     task_name: str | None = Field(default=None, description="The task name")
     status: Literal["PENDING", "STARTED", "SUCCESS", "FAILURE", "RETRY", "REVOKED"] = Field(
         default="PENDING", description="Task status"
     )
-    created_at: datetime = Field(default_factory=datetime.now, description="Creation time")
     updated_at: datetime | None = Field(default=None, description="Update time")
     args: Any | None = Field(default=None, description="Task arguments")
     kwargs: Any | None = Field(default=None, description="Task keyword arguments")

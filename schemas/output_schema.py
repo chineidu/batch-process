@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_serializer
 
 from schemas import BaseSchema, Float
 
@@ -9,7 +9,7 @@ from schemas import BaseSchema, Float
 class PredOutput(BaseSchema):
     """Schema for the output of the model."""
 
-    id: str | None = Field(default=None, description="Unique identifier for the person.")
+    person_id: str | None = Field(default=None, description="Unique identifier for the person.")
     survived: int = Field(default=0, description="Survival status of the passenger.")
     probability: Float = Field(default=0.0, description="Probability of the passenger surviving.")
 
@@ -17,13 +17,26 @@ class PredOutput(BaseSchema):
 class ModelOutput(BaseSchema):
     """Schema for the output of the model."""
 
-    status: Literal["success", "error"] = Field(
-        default="success", description="Status of the response."
-    )
-    timestamp: datetime = Field(
-        default_factory=datetime.now, description="Timestamp of the response."
-    )
     data: PredOutput | None = Field(default=None, description="Prediction output.")
+    status: Literal["success", "error"] = Field(description="Status of the response.")
+    created_at: datetime = Field(default_factory=datetime.now, description="Timestamp of the response.")
+
+    @field_serializer("created_at")
+    def serialize_created_at(self, value: datetime) -> str:
+        """
+        Serializes the created_at field to ISO format.
+
+        Parameters
+        ----------
+        value : datetime
+            The datetime object to serialize.
+
+        Returns
+        -------
+        str
+            The serialized datetime object as a string in ISO format.
+        """
+        return value.isoformat()
 
 
 class MultiPredOutput(BaseSchema):

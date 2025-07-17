@@ -91,14 +91,12 @@ def init_db() -> None:
 
 
 # ===== Database Models =====
-
-
 class PersonLog(Base):
-    """Data model for storing Named Entity Recognition (NER) data."""
+    """Data model for storing person data."""
 
     __tablename__: str = "persons"
     id: Mapped[int] = mapped_column(primary_key=True)
-    person_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    person_id: Mapped[str] = mapped_column("personId", String(50), unique=True, index=True)
     sex: Mapped[str] = mapped_column(String(8))
     age: Mapped[float] = mapped_column(Float)
     pclass: Mapped[int] = mapped_column(Integer)
@@ -120,6 +118,26 @@ class PersonLog(Base):
         return (
             f"{self.__class__.__name__}(person_id={self.person_id!r}, sex={self.sex!r}, created_at={self.created_at!r})"
         )
+
+
+class PredictionLog(Base):
+    """Data model for storing prediction data."""
+
+    __tablename__: str = "predictions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    data: Mapped[dict[str, Any]] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(10))
+    created_at: Mapped[str | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
+
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of the NERData object.
+
+        Returns
+        -------
+        str
+        """
+        return f"{self.__class__.__name__}(data={self.data!r}, status={self.status!r}, created_at={self.created_at!r})"
 
 
 class TaskResult(Base):
@@ -173,7 +191,34 @@ class EmailLog(Base):
         )
 
 
-class DataProcessingJob(Base):
+class PredictionProcessingJobLog(Base):
+    """Data model for storing email logs."""
+
+    __tablename__: str = "prediction_processing_jobs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    job_name: Mapped[str] = mapped_column("jobName", String(50), index=True)
+    input_data: Mapped[str] = mapped_column("inputData", Text)
+    output_data: Mapped[str] = mapped_column("outputData", Text)
+    processing_time: Mapped[float] = mapped_column("processingTime", Float)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
+    completed_at: Mapped[datetime] = mapped_column("completedAt", DateTime(timezone=True), nullable=True)
+
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of the email log.
+
+        Returns
+        -------
+        str
+        """
+        return (
+            f"{self.__class__.__name__}(job_name={self.job_name!r}, created_at={self.created_at!r}, "
+            f"status={self.status!r})"
+        )
+
+
+class DataProcessingJobLog(Base):
     """Data model for storing email logs."""
 
     __tablename__: str = "data_processing_jobs"
@@ -239,7 +284,6 @@ class CeleryTasksLog(Base):
     task_id: Mapped[str] = mapped_column("taskId", String(255), unique=True, index=True)
     task_name: Mapped[str] = mapped_column("taskName", String(255), index=True)
     status: Mapped[str] = mapped_column(String(50), default="PENDING")
-    created_at: Mapped[datetime | None] = mapped_column("createdAt", DateTime(timezone=True), nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column("updatedAt", DateTime(timezone=True), nullable=True)
     args: MappedColumn[Any] = mapped_column(Text, nullable=True)
     kwargs: MappedColumn[Any] = mapped_column(Text, nullable=True)
@@ -254,12 +298,27 @@ class CeleryTasksLog(Base):
         -------
         str
         """
-        return f"{self.__class__.__name__}(task_id={self.task_id!r}, created_at={self.created_at!r} status={self.status!r})"
+        return f"{self.__class__.__name__}(task_id={self.task_id!r}, updated_at={self.updated_at!r} status={self.status!r})"
 
 
 # ===== Mixins =====
 class DatabaseLoggingMixin:
     def _save_log(self, task_id: str, status: str, **extra_data: dict[str, Any]) -> None:
+        """Saves a log entry for a Celery task in the database.
+
+        Parameters
+        ----------
+        task_id : str
+            The ID of the task.
+        status : str
+            The status of the task.
+        **extra_data : dict[str, Any]
+            Additional data to store in the log entry.
+
+        Notes
+        -----
+        Exceptions are caught and logged, and the method does not re-raise any exceptions.
+        """
         try:
             with get_db_session() as session:
                 statement = session.query(CeleryTasksLog).where(CeleryTasksLog.task_id == task_id)
@@ -387,7 +446,6 @@ class DatabaseLoggingMixin:
 
 class BaseTask(DatabaseLoggingMixin, BaseCustomTask):
     """Base class for tasks with database logging capabilities.
-
     Adds on_success, on_failure, and on_retry methods that save the task log to the database.
     """
 
@@ -396,7 +454,6 @@ class BaseTask(DatabaseLoggingMixin, BaseCustomTask):
 
 class MLTask(DatabaseLoggingMixin, BaseMLTask, BaseCustomTask):
     """Base class for machine learning tasks with database logging capabilities.
-
     Adds on_success, on_failure, and on_retry methods that save the task log to the database.
     """
 

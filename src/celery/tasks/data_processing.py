@@ -4,11 +4,11 @@ from datetime import datetime
 from typing import Any
 
 from celery import chord, current_task, group
-from schemas import DataProcessingSchema
+from schemas import JobProcessingSchema
 from src import create_logger
 from src.celery import celery_app
 from src.database import get_db_session
-from src.database.db_models import BaseTask, DataProcessingJob
+from src.database.db_models import BaseTask, DataProcessingJobLog
 
 logger = create_logger(name="data_processing")
 
@@ -95,7 +95,7 @@ def combine_processed_chunks(chunk_results: list[Any]) -> dict[str, Any]:
 
             avg_processing_time = round((total_processing_time / len(sorted_results)), 2)
             # Save to database
-            data = DataProcessingSchema(
+            data = JobProcessingSchema(
                 job_name="bulk_data_processing",
                 input_data=json.dumps({"chunks": sorted_results}),
                 output_data=json.dumps({"combined_data": combined_data, "total_items": total_items}),
@@ -103,7 +103,7 @@ def combine_processed_chunks(chunk_results: list[Any]) -> dict[str, Any]:
                 status="completed",
                 completed_at=datetime.now(),
             ).model_dump()
-            job = DataProcessingJob(**data)
+            job = DataProcessingJobLog(**data)
             session.add(job)
             session.flush()
 
