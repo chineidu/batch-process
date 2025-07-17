@@ -1,7 +1,7 @@
 services:
   local-rabbitmq: # 1st service
     image: rabbitmq:4.1.2-management
-    container_name: local-rabbitmq # Also used as hostname
+    container_name: local-rabbitmq
     env_file: # Location of file(s) containing the env vars. Only accessed by the container.
       - .env
     ports:
@@ -27,45 +27,86 @@ services:
     env_file:
       - .env
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data  # Bind mount for the data folder
-    depends_on:
-      local-rabbitmq:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "pg_isready -U user -d celery_db"]
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d celery_db"]
       interval: 30s
       timeout: 10s
       retries: 5
+      
+  celery-worker: # 3rd service
+    image: celery-worker:v1
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: celery-worker
+    command: python worker.py
+    environment:
+      - RABBITMQ_HOST=local-rabbitmq
+      - POSTGRES_HOST=database
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data  # Bind mount for the data folder
+      - ./models:/app/models
+    develop:
+    # Create a `watch` configuration to update the app
+      watch:
+        - action: sync
+          path: ./
+          target: /app
+          # Folders and files to ignore
+          ignore:
+            - .venv
+            - "**/**/*.ipynb"
+        # Rebuild image if any of these files change
+        - action: rebuild
+          path: ./pyproject.toml
+    depends_on:
+      local-rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
 
-  # producer: # 3rd service
-  #   image: redis:8.0.2
-  #   container_name: local-rmq-producer
-  #   environment:
-  #     - RABBITMQ_HOST=local-rabbitmq
-  #   env_file:
-  #     - .env
-  #   volumes:
-  #     - ./data:/app/data  # Bind mount for the data folder
-  #   cpus: "0.5"
-  #   develop:
-  #   # Create a `watch` configuration to update the app
-  #     watch:
-  #       - action: sync
-  #         path: ./
-  #         target: /app
-  #         # Folders and files to ignore
-  #         ignore:
-  #           - .venv
-  #           - "**/**/*.ipynb"
-  #       # Rebuild image if any of these files change
-  #       - action: rebuild
-  #         path: ./pyproject.toml
-  #   depends_on:
-  #     local-rabbitmq:
-  #       condition: service_healthy
+  celery-beat: # 4th service
+      image: celery-worker:v1
+      build:
+        context: ./
+      container_name: celery-beat
+      environment:
+      - RABBITMQ_HOST=local-rabbitmq
+      - POSTGRES_HOST=database
+      env_file:
+        - .env
+      command: celery -A src.celery.app beat --loglevel=info
+      depends_on:
+        local-rabbitmq:
+          condition: service_healthy
+        postgres:
+          condition: service_healthy
 
+  flower: # 5th service
+      image: celery-worker:v1
+      build:
+        context: ./
+      container_name: celery-flower
+      command: >
+        celery -A src.celery.app flower 
+        --basic_auth=$CELERY_FLOWER_USER:$CELERY_FLOWER_PASSWORD
+      environment:
+      - RABBITMQ_HOST=local-rabbitmq
+      - POSTGRES_HOST=database
+      env_file:
+        - .env
+      ports:
+        - "5555:5555"
+      depends_on:
+        local-rabbitmq:
+          condition: service_healthy
+        postgres:
+          condition: service_healthy
 
 # Named volumes ONLY!
 # Persist data outside the lifecycle of the container.

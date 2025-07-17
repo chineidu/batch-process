@@ -35,8 +35,6 @@ app_config:
       model_path: models/model.pkl
 
   celery_config:
-    broker_url: pyamqp://guest@localhost:5672// # Add this to your .env
-    result_backend: db+postgresql://postgres:postgres@localhost:5433/postgres # Add this to your .env
     task_config:
       task_serializer: json
       result_serializer: json
@@ -48,7 +46,6 @@ app_config:
       src.celery.tasks.data_processing.*: { queue: data }
       src.celery.tasks.periodic_tasks.*: { queue: periodic }
       src.celery.tasks.ml_prediction_tasks.*: { queue: predict }
-
 
     worker_config:
       worker_prefetch_multiplier: 1

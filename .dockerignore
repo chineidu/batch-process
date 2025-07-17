@@ -1,4 +1,9 @@
 .venv
 .env
+.mypy_cache
+.pytest_cache
+.vscode
+**/**/__pycache__
 **/**/data
 **/**/*.db
+**/**/notebooks

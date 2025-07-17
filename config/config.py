@@ -124,9 +124,6 @@ class OtherConfig(BaseSchema):
 class CeleryConfig(BaseSchema):
     """Celery configuration class."""
 
-    broker_url: str = Field(description="Broker URL")
-    result_backend: str = Field(description="Result backend")
-
     task_config: TaskConfig = Field(description="Task configuration")
     task_routes: dict[str, QueueConfig] = Field(description="Dictionary of task routes")
     worker_config: WorkerConfig = Field(description="Worker configuration")

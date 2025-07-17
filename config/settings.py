@@ -27,8 +27,9 @@ class Settings(BaseSettings):
     # ======= Database settings =======
     POSTGRES_USER: str
     POSTGRES_PASSWORD: SecretStr
-    POSTGRES_DB: str
+    POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int
+    POSTGRES_DB: str
 
     # ======= Celery settings =======
     CELERY_FLOWER_USER: str
@@ -48,6 +49,39 @@ class Settings(BaseSettings):
         return (
             f"amqp://{self.RABBITMQ_DEFAULT_USER}:{self.RABBITMQ_DEFAULT_PASS.get_secret_value()}"
             f"@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/?heartbeat={self.RABBITMQ_HEARTBEAT}"
+        )
+
+    @property
+    def celery_database_url(self) -> str:
+        """
+        Constructs the PostgreSQL connection URL.
+
+        Returns
+        -------
+        str
+            Complete PostgreSQL connection URL in the format:
+            db+postgresql://user:password@host:port/dbname
+        """
+        return (
+            f"db+postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD.get_secret_value()}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+    @property
+    def database_url(self) -> str:
+        """
+        Constructs the PostgreSQL connection URL.
+
+        Returns
+        -------
+        str
+            Complete PostgreSQL connection URL in the format:
+            postgresql+psycopg2://user:password@host:port/dbname
+        """
+
+        return (
+            f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD.get_secret_value()}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
 

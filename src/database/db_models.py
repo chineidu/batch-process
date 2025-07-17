@@ -48,10 +48,7 @@ def get_db_pool() -> DatabasePool:
         if settings.ENVIRONMENT == "test":
             DATABASE_URL: str = app_config.db.db_path
         elif settings.ENVIRONMENT in ["dev", "prod"]:
-            DATABASE_URL = (
-                f"postgresql+psycopg2://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD.get_secret_value()}"
-                f"@localhost:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
-            )
+            DATABASE_URL = settings.database_url
         logger.info(f"Connected to {settings.ENVIRONMENT!r} environment database.")
         _db_pool = DatabasePool(DATABASE_URL)
     return _db_pool

@@ -6,10 +6,7 @@ from config.settings import refresh_settings
 
 settings = refresh_settings()
 
-DATABASE_URL = (
-    f"db+postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD.get_secret_value()}"
-    f"@localhost:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
-)
+DATABASE_URL = settings.celery_database_url
 
 
 def create_celery_app() -> Celery:
@@ -40,7 +37,7 @@ def create_celery_app() -> Celery:
         result_backend_max_retries=app_config.celery_config.other_config.result_backend_max_retries,
         result_expires=app_config.celery_config.other_config.result_expires,
         # Broker config
-        broker_url=app_config.celery_config.broker_url,
+        broker_url=settings.rabbitmq_url,
         # Task config
         task_serializer=app_config.celery_config.task_config.task_serializer,
         result_serializer=app_config.celery_config.task_config.result_serializer,

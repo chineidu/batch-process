@@ -1,3 +1,4 @@
 #!/bin/bash
 
-python main.py 
+# Run the worker in the foreground
+tail -f /dev/null
