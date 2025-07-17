@@ -48,7 +48,6 @@ def process_single_data(self, data: dict[str, Any]) -> dict[str, Any]:  # noqa: 
         return {
             "status": "success",
             "response": response,
-            "subject": data_dict.get("subject"),
             "sent_at": datetime.now().isoformat(),
         }
 

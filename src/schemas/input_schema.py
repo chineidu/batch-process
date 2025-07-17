@@ -3,7 +3,14 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_serializer  # type: ignore
+from pydantic import (  # type: ignore
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+)
 from pydantic.alias_generators import to_camel
 
 
@@ -32,6 +39,15 @@ class BaseSchema(BaseModel):
         arbitrary_types_allowed=True,
     )
 
+    @field_serializer(
+        "created_at", "completed_at", "updated_at", "args", "kwargs", "result", "error", check_fields=False
+    )
+    def serialize(self, value: Any) -> str:
+        """Serializes datetime fields to ISO format."""
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return json.dumps(value)
+
 
 Float = Annotated[float, BeforeValidator(round_probability)]
 
@@ -50,19 +66,33 @@ class PersonSchema(BaseSchema):
     survived: int = Field(default=0, description="Survival status of the passenger.")
     created_at: datetime = Field(alias="createdAt", default_factory=datetime.now, description="Timestamp of the entry.")
 
+    @field_validator("sex", "embarked", mode="before")
+    def validate_string(cls, value: str) -> str:  # noqa: N805
+        """Format string"""
+        return value.lower().strip()
+
+
+class SinglePersonSchema(BaseSchema):
+    data: list[PersonSchema] = Field(description="List of people.")
+
     class Config:
-        allow_population_by_field_name = True
+        validate_by_name = True
         json_schema_extra = {
             "examples": [
                 {
-                    "person_id": "1",
-                    "sex": "male",
-                    "age": 22,
-                    "pclass": 1,
-                    "sibsp": 1,
-                    "parch": 0,
-                    "fare": 7.25,
-                    "embarked": "s",
+                    "data": [
+                        {
+                            "person_id": "1",
+                            "sex": "male",
+                            "age": 22.0,
+                            "pclass": 3,
+                            "sibsp": 1,
+                            "parch": 0,
+                            "fare": 7.25,
+                            "embarked": "s",
+                            "survived": 1,
+                        }
+                    ]
                 }
             ]
         }
@@ -126,10 +156,3 @@ class CeleryTasksLogSchema(BaseSchema):
     kwargs: Any | None = Field(default=None, description="Task keyword arguments")
     result: str | None = Field(default=None, description="Task result")
     error: str | None = Field(default=None, description="Task error")
-
-    @field_serializer("args", "kwargs", "result", "error")
-    def serialize(self, value: Any) -> str:
-        """Serializes datetime fields to ISO format."""
-        if isinstance(value, datetime):
-            return value.isoformat()
-        return json.dumps(value)

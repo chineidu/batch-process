@@ -2,6 +2,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Generator, TypeVar
 
+from celery.signals import worker_process_init
 from pydantic import BaseModel
 from sqlalchemy import (
     JSON,
@@ -16,11 +17,11 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.orm.properties import MappedColumn
 
-from celery.signals import worker_process_init
 from src import create_logger
-from src.celery_pkg import BaseCustomTask, BaseMLTask
+from src.celery_pkg import BaseCustomTask
 from src.config import app_config
 from src.config.settings import refresh_settings
+from src.ml.utils import BaseMLTask
 from src.schemas import CeleryTasksLogSchema
 
 from .utilities import DatabasePool
@@ -55,7 +56,7 @@ def get_db_pool() -> DatabasePool:
 
 
 @worker_process_init.connect
-def init_worker(**kwargs) -> None:
+def init_worker(**kwargs) -> None:  # noqa: ANN003, ARG001
     """Disposes of the database engine when a new worker process starts necessary for
     cleaning up connections and freeing resources.
     """

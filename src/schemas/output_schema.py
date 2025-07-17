@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import Field, field_serializer
+from pydantic import Field
 
 from src.schemas import BaseSchema, Float
 
@@ -20,23 +20,6 @@ class ModelOutput(BaseSchema):
     data: PredOutput | None = Field(default=None, description="Prediction output.")
     status: Literal["success", "error"] = Field(description="Status of the response.")
     created_at: datetime = Field(default_factory=datetime.now, description="Timestamp of the response.")
-
-    @field_serializer("created_at")
-    def serialize_created_at(self, value: datetime) -> str:
-        """
-        Serializes the created_at field to ISO format.
-
-        Parameters
-        ----------
-        value : datetime
-            The datetime object to serialize.
-
-        Returns
-        -------
-        str
-            The serialized datetime object as a string in ISO format.
-        """
-        return value.isoformat()
 
 
 class MultiPredOutput(BaseSchema):

@@ -1,11 +1,12 @@
 import sys
 import warnings
 
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.utilities import lifespan
 from src.api.routes import health, prediction
+from src.api.utilities import lifespan
 from src.config import app_config
 
 warnings.filterwarnings("ignore")
@@ -52,9 +53,12 @@ app = create_application()
 
 if __name__ == "__main__":
     try:
-        import uvicorn
-
-        uvicorn.run(app, host="0.0.0.0", port=8000)
+        uvicorn.run(
+            "src.api.app:app",
+            host=api_config.server.host,
+            port=api_config.server.port,
+            reload=api_config.server.reload,
+        )
     except (Exception, KeyboardInterrupt) as e:
         print(f"Error creating application: {e}")
         print("Exiting gracefully...")

@@ -1,90 +1,83 @@
+from __future__ import annotations
+
 import asyncio
 import os
 import time
 import traceback
 import warnings
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, AsyncGenerator
 
 import httpx
-import torch
+import joblib
 from fastapi import FastAPI, HTTPException, Request, status
 
-from src.api.utilities import create_logger
+from src import PACKAGE_PATH, create_logger
 from src.config import app_config
-from src.utilities.model_utils import load_gliner_model
 
 warnings.filterwarnings("ignore")
-logger = create_logger(name="app_utils")
-
+logger = create_logger(name="utilities")
 MAX_WORKERS: int = os.cpu_count() - 1  # type: ignore
-
+api_config = app_config.api_config
 DUMMY_DATA: dict[str, Any] = {
     "data": [
         {
-            "id": "1",
-            "text": "treehouse cart payment communion retail store with levy through merrybet",
-        },
-        {"id": "2", "text": "alat transfer opay get drugs"},
+            "personId": "q0bPCRQH",
+            "sex": "female",
+            "age": 66.48,
+            "pclass": 2,
+            "sibsp": 0,
+            "parch": 0,
+            "fare": 149.22,
+            "embarked": "q",
+        }
     ]
 }
 
 
-class ModelManager:
-    """A singleton class that manages the ML model, its dependencies, and prediction cache.
+class Modelmanager:
+    """
+    A singleton class that provides access to a machine learning model dictionary.
 
-    This class ensures only one instance of the model is loaded in memory and provides
-    methods to access and manage the model, dependencies, and cache.
+    This class ensures that the model dictionary is loaded only once and reused
+    throughout the application's lifecycle.
     """
 
-    _instance: "ModelManager | None" = None
-    _model: nn.Module | None = None
+    _instance: Modelmanager | None = None
+    _model_dict: dict[str, Any] | None = None
     _is_initialized: bool = False
 
-    def __new__(cls) -> "ModelManager":
-        """Create or return the singleton instance of ModelManager.
-
-        Returns
-        -------
-        ModelManager
-            The singleton instance of ModelManager
-        """
+    def __new__(cls) -> Modelmanager:
+        """Create or return the singleton instance of Modelmanager."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._load_model()  # noqa: SLF001
-            cls._instance._is_initialized = True  # noqa: SLF001
+            cls._instance._load_model_dict()  # noqa: SLF001
+
         return cls._instance
 
-    def _load_model(self) -> None:
-        """Load the ML model, dependencies, and initialize the prediction cache.
-
-        Raises
-        ------
-        HTTPException
-            If there is an error loading the model or dependencies
-        """
-        try:
-            self._model = load_gliner_model(app_config.model.model_path)
-            logger.info("Model successfully loaded...")
-
-        except Exception as e:
-            logger.error(f"Error loading model: {e} \nTraceback: {traceback.format_exc()}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error loading model and dependencies",
-            ) from e
-
     def __init__(self) -> None:
+        """Initialize the Modelmanager instance."""
         if not self._is_initialized:
-            self._load_model()
+            self._is_initialized = True
 
-    def get_components(self) -> dict[str, Any]:
-        """Get the components of the model manager."""
-        return {"model": self._model}
+    def _load_model_dict(self) -> None:
+        """Load the model dictionary from a file."""
+        model_path: str = str(PACKAGE_PATH / Path(app_config.model.artifacts.model_path))
+        with open(model_path, "rb") as f:
+            self._model_dict = joblib.load(f)
+
+    @property
+    def model_dict(self) -> dict[str, Any]:
+        """Return the model dictionary, loading it if necessary."""
+        if self._model_dict is None:
+            self._load_model_dict()
+        return self._model_dict  # type: ignore
 
     def clear_cache(self) -> None:
-        """Clear and reload the model."""
-        self._model = None
+        """Clear the model dictionary cache."""
+        if self.model_dict is not None:
+            self._model_dict = None
 
 
 @asynccontextmanager
@@ -99,17 +92,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Loading model during application startup...")
 
         # Init model and dependencies and store all components in app state
-        model_manager: ModelManager = ModelManager()
+        model_manager: Modelmanager = Modelmanager()
         app.state.model_manager = model_manager
-
-        # Log device information
-        if torch.cuda.is_available():
-            logger.info(f"GPU Device Name: {torch.cuda.get_device_name(0)}")
-            logger.info(
-                f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / (1024**3):.2f} GB"
-            )
-        else:
-            logger.warning("GPU is NOT available!")
 
         # Wait a few seconds before making the first request
         await asyncio.sleep(1)
@@ -170,7 +154,7 @@ async def perform_http_warmup() -> None:
 
     logger.info("Performing HTTP warmup request...")
     print(f"Port: {app_config.api_config.server.port}")
-    url: str = f"http://127.0.0.1:{app_config.api.server.port}{app_config.api.prefix}/predict"
+    url: str = f"http://127.0.0.1:{api_config.server.port}{api_config.prefix}/predict-single"
     try:
         async with httpx.AsyncClient() as client:
             response: httpx.Response = await client.post(url, json=DUMMY_DATA, timeout=30.0)
