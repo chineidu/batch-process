@@ -21,7 +21,7 @@ from config import app_config
 from config.settings import refresh_settings
 from schemas import CeleryTasksLogSchema
 from src import create_logger
-from src.celery import CustomTask
+from src.celery import BaseCustomTask, BaseMLTask
 
 from .utilities import DatabasePool
 
@@ -93,14 +93,20 @@ def init_db() -> None:
 # ===== Database Models =====
 
 
-class NERResult(Base):
+class PersonLog(Base):
     """Data model for storing Named Entity Recognition (NER) data."""
 
-    __tablename__: str = "ner_results"
+    __tablename__: str = "persons"
     id: Mapped[int] = mapped_column(primary_key=True)
-    status: Mapped[str] = mapped_column(String(50))
-    data: Mapped[dict[str, Any]] = mapped_column(JSON)
-    timestamp: Mapped[str | None] = mapped_column(DateTime(timezone=True), default=func.now())
+    person_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    sex: Mapped[str] = mapped_column(String(8))
+    age: Mapped[float] = mapped_column(Float)
+    pclass: Mapped[int] = mapped_column(Integer)
+    sibsp: Mapped[int] = mapped_column(Integer)
+    parch: Mapped[int] = mapped_column(Integer)
+    fare: Mapped[float] = mapped_column(Float)
+    embarked: Mapped[str] = mapped_column(String(8))
+    survived: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[str | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
 
     def __repr__(self) -> str:
@@ -111,7 +117,9 @@ class NERResult(Base):
         -------
         str
         """
-        return f"{self.__class__.__name__}(id={self.id!r}, status={self.status!r}, data={self.data!r})"
+        return (
+            f"{self.__class__.__name__}(person_id={self.person_id!r}, sex={self.sex!r}, created_at={self.created_at!r})"
+        )
 
 
 class TaskResult(Base):
@@ -377,8 +385,17 @@ class DatabaseLoggingMixin:
             super().on_retry(exc, task_id, args, kwargs, einfo)  # type: ignore
 
 
-class BaseTask(DatabaseLoggingMixin, CustomTask):
+class BaseTask(DatabaseLoggingMixin, BaseCustomTask):
     """Base class for tasks with database logging capabilities.
+
+    Adds on_success, on_failure, and on_retry methods that save the task log to the database.
+    """
+
+    pass
+
+
+class MLTask(DatabaseLoggingMixin, BaseMLTask, BaseCustomTask):
+    """Base class for machine learning tasks with database logging capabilities.
 
     Adds on_success, on_failure, and on_retry methods that save the task log to the database.
     """

@@ -39,7 +39,7 @@ Float = Annotated[float, BeforeValidator(round_probability)]
 class PersonSchema(BaseSchema):
     """Schema for a person."""
 
-    id: str | None = Field(default=None, description="Unique identifier for the person.")
+    id: str | None = Field(alias="personId", default=None, description="Unique identifier for the person.")
     sex: Literal["male", "female"] = Field(description="Sex of the passenger.")
     age: Float = Field(description="Age of the passenger.")
     pclass: int = Field(description="Passenger class.")
@@ -48,7 +48,7 @@ class PersonSchema(BaseSchema):
     fare: Float = Field(description="Fare paid for the ticket.")
     embarked: Literal["s", "c", "q"] = Field(description="Port of embarkation.")
     survived: int = Field(default=0, description="Survival status of the passenger.")
-    timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the entry.")
+    timestamp: datetime = Field(alias="createdAt", default_factory=datetime.now, description="Timestamp of the entry.")
 
 
 class MultiPersonsSchema(BaseSchema):
