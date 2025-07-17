@@ -4,11 +4,12 @@ from datetime import datetime
 from typing import Any
 
 from celery import chord, current_task, group
-from schemas import JobProcessingSchema
+
 from src import create_logger
-from src.celery import celery_app
+from src.celery_pkg import celery_app
 from src.database import get_db_session
 from src.database.db_models import BaseTask, DataProcessingJobLog
+from src.schemas import JobProcessingSchema
 
 logger = create_logger(name="data_processing")
 

@@ -42,10 +42,10 @@ app_config:
       enable_utc: true
     # Task routing and queues
     task_routes:
-      src.celery.tasks.email_tasks.*: { queue: email }
-      src.celery.tasks.data_processing.*: { queue: data }
-      src.celery.tasks.periodic_tasks.*: { queue: periodic }
-      src.celery.tasks.ml_prediction_tasks.*: { queue: predict }
+      src.celery_pkg.tasks.email_tasks.*: { queue: email }
+      src.celery_pkg.tasks.data_processing.*: { queue: data }
+      src.celery_pkg.tasks.periodic_tasks.*: { queue: periodic }
+      src.celery_pkg.tasks.ml_prediction_tasks.*: { queue: predict }
 
     worker_config:
       worker_prefetch_multiplier: 1
@@ -55,10 +55,10 @@ app_config:
     beat_config:
       beat_schedule:
         cleanup_old_records:
-          task: src.celery.tasks.periodic_tasks.cleanup_old_records
+          task: src.celery_pkg.tasks.periodic_tasks.cleanup_old_records
           schedule: 3600 # 1 hour
       health_check:
-        task: src.celery.tasks.periodic_tasks.health_check
+        task: src.celery_pkg.tasks.periodic_tasks.health_check
         schedule: 180 # 3 minutes
 
     other_config:

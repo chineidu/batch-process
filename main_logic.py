@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 from src import create_logger
-from src.celery.tasks import ml_process_large_dataset, process_large_dataset, send_bulk_emails, send_email
+from src.celery_pkg.tasks import ml_process_large_dataset, process_large_dataset, send_bulk_emails, send_email
 
 logger = create_logger(name="main")
 

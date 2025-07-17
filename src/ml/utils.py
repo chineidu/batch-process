@@ -4,7 +4,7 @@ import numpy as np
 import numpy.typing as npt
 import polars as pl
 
-from schemas import ModelOutput, MultiPersonsSchema, MultiPredOutput, PersonSchema
+from src.schemas import ModelOutput, MultiPersonsSchema, MultiPredOutput, PersonSchema
 
 
 def record_to_dataframe(record: PersonSchema) -> pl.DataFrame:

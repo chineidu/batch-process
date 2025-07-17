@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from src import create_logger
-from src.celery import celery_app
+from src.celery_pkg import celery_app
 from src.database import get_db_session
 from src.database.db_models import BaseTask, CeleryTasksLog, DataProcessingJobLog, EmailLog, TaskResult
 

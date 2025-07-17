@@ -1,5 +1,5 @@
 from src import create_logger
-from src.celery import celery_app
+from src.celery_pkg import celery_app
 from src.database import init_db
 
 logger = create_logger(name="worker")

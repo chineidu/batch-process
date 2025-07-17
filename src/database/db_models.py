@@ -17,11 +17,11 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.orm.properties import MappedColumn
 
 from celery.signals import worker_process_init
-from config import app_config
-from config.settings import refresh_settings
-from schemas import CeleryTasksLogSchema
 from src import create_logger
-from src.celery import BaseCustomTask, BaseMLTask
+from src.celery_pkg import BaseCustomTask, BaseMLTask
+from src.config import app_config
+from src.config.settings import refresh_settings
+from src.schemas import CeleryTasksLogSchema
 
 from .utilities import DatabasePool
 

@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import Field, field_serializer
 
-from schemas import BaseSchema, Float
+from src.schemas import BaseSchema, Float
 
 
 class PredOutput(BaseSchema):

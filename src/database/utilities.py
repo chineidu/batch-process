@@ -8,8 +8,8 @@ from sqlalchemy.exc import DisconnectionError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import QueuePool
 
-from config.settings import refresh_settings
 from src import create_logger
+from src.config.settings import refresh_settings
 
 settings = refresh_settings()
 logger = create_logger(name="database_utilities")

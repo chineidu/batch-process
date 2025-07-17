@@ -3,13 +3,13 @@ from datetime import datetime
 from typing import Any
 
 import numpy as np
-
 from celery import group
-from schemas import EmailSchema
+
 from src import create_logger
-from src.celery import celery_app
+from src.celery_pkg import celery_app
 from src.database import get_db_session
 from src.database.db_models import BaseTask, EmailLog
+from src.schemas import EmailSchema
 
 logger = create_logger()
 

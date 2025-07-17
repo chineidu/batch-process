@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Any
 
 import joblib
-
 from celery import Task
-from config import app_config
+
 from src import PACKAGE_PATH
+from src.config import app_config
 
 from .app import celery_app
 

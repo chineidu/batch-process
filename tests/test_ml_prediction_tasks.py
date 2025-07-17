@@ -5,7 +5,7 @@ import pytest
 # Add the src directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from src.celery.tasks.ml_prediction_tasks import load_model_task, process_single_prediction, process_batch_predictions
+from src.celery_pkg.tasks.ml_prediction_tasks import load_model_task, process_single_prediction, process_batch_predictions
 
 def test_load_model_task():
     """Test loading the ML model."""

@@ -1,4 +1,4 @@
-from schemas.input_schema import (  # type: ignore
+from src.schemas.input_schema import (  # type: ignore
     BaseSchema,
     CeleryTasksLogSchema,
     EmailSchema,
@@ -8,7 +8,7 @@ from schemas.input_schema import (  # type: ignore
     PersonSchema,
     TaskSchema,
 )
-from schemas.output_schema import ModelOutput, MultiPredOutput, PredOutput  # type: ignore
+from src.schemas.output_schema import ModelOutput, MultiPredOutput, PredOutput  # type: ignore
 
 __all__: list[str] = [
     "BaseSchema",

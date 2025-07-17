@@ -1,8 +1,9 @@
 from typing import Any
 
 from celery import Celery
-from config import app_config
-from config.settings import refresh_settings
+
+from src.config import app_config
+from src.config.settings import refresh_settings
 
 settings = refresh_settings()
 
@@ -57,10 +58,10 @@ def create_celery_app() -> Celery:
 
     # Task discovery
     celery.autodiscover_tasks([
-    "src.celery.tasks.email_tasks",
-    "src.celery.tasks.data_processing",
-    "src.celery.tasks.periodic_tasks",
-    "src.celery.tasks.ml_prediction_tasks",
+    "src.celery_pkg.tasks.email_tasks",
+    "src.celery_pkg.tasks.data_processing",
+    "src.celery_pkg.tasks.periodic_tasks",
+    "src.celery_pkg.tasks.ml_prediction_tasks",
     ])
 
     return celery

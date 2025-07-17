@@ -5,8 +5,8 @@ from pathlib import Path
 from omegaconf import DictConfig, OmegaConf
 from pydantic import Field
 
-from schemas import BaseSchema
 from src import PACKAGE_PATH
+from src.schemas import BaseSchema
 
 
 class Data(BaseSchema):
@@ -140,7 +140,7 @@ class AppConfig(BaseSchema):
     celery_config: CeleryConfig = Field(description="Celery configuration")
 
 
-config_path: Path = PACKAGE_PATH / "config/config.yaml"
+config_path: Path = PACKAGE_PATH / "src/config/config.yaml"
 config: DictConfig = OmegaConf.load(config_path).app_config
 
 app_config: AppConfig = AppConfig(**config)  # type: ignore

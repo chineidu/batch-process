@@ -3,14 +3,14 @@ import time
 from datetime import datetime
 from typing import Any
 
+from celery import chord, current_task, group
 from sqlalchemy import insert
 
-from celery import chord, current_task, group
-from schemas import JobProcessingSchema, ModelOutput, PersonSchema
 from src import create_logger
-from src.celery import celery_app
+from src.celery_pkg import celery_app
 from src.database.db_models import MLTask, PersonLog, PredictionLog, PredictionProcessingJobLog, get_db_session
 from src.ml.utils import _get_prediction
+from src.schemas import JobProcessingSchema, ModelOutput, PersonSchema
 
 logger = create_logger(name="ml_prediction")
 
