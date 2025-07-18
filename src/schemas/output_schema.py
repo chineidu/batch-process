@@ -1,10 +1,9 @@
-import json
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import Field, field_serializer
+from pydantic import BaseModel, Field
 
-from src.schemas import BaseSchema, Float
+from src.schemas import BaseSchema, BaseWithSerializerSchema, Float
 
 
 class PredOutput(BaseSchema):
@@ -15,7 +14,7 @@ class PredOutput(BaseSchema):
     probability: Float = Field(default=0.0, description="Probability of the passenger surviving.")
 
 
-class ModelOutput(BaseSchema):
+class ModelOutput(BaseWithSerializerSchema):
     """Schema for the output of the model."""
 
     data: PredOutput | None = Field(default=None, description="Prediction output.")
@@ -40,7 +39,8 @@ class HealthCheck(BaseSchema):
     status: str = "healthy"
     version: str = "0.1.0"
 
-class TaskStatusSchema(BaseSchema):
+
+class APITaskStatusSchema(BaseModel):
     """
     Data schema for task status.
 
@@ -62,20 +62,3 @@ class TaskStatusSchema(BaseSchema):
     task_id: str = Field(description="Task id")
     status: Literal["PENDING", "STARTED", "SUCCESS", "FAILURE"] = Field(default="PENDING", description="Task status")
     result: dict[str, Any] = Field(default_factory=dict, description="Task result")
-
-    @field_serializer("result")
-    def serialize(self, value: Any) -> str:
-        """
-        Serialize task result to a string
-
-        Parameters
-        ----------
-        value : Any
-            The value to serialize
-
-        Returns
-        -------
-        str
-            The serialized value
-        """
-        return json.dumps(value)

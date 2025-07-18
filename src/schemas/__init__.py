@@ -1,9 +1,9 @@
 from src.schemas.input_schema import (  # type: ignore
     BaseSchema,
+    BaseWithSerializerSchema,
     CeleryTasksLogSchema,
     EmailSchema,
     Float,
-    GetTaskSchema,
     JobProcessingSchema,
     MultiPersonsSchema,
     PersonSchema,
@@ -11,19 +11,20 @@ from src.schemas.input_schema import (  # type: ignore
     TaskSchema,
 )
 from src.schemas.output_schema import (  # type: ignore
+    APITaskStatusSchema,
     HealthCheck,
     ModelOutput,
     MultiPredOutput,
     PredOutput,
-    TaskStatusSchema,
 )
 
 __all__: list[str] = [
+    "APITaskStatusSchema",
     "BaseSchema",
+    "BaseWithSerializerSchema",
     "CeleryTasksLogSchema",
     "EmailSchema",
     "Float",
-    "GetTaskSchema",
     "HealthCheck",
     "JobProcessingSchema",
     "ModelOutput",
@@ -33,5 +34,4 @@ __all__: list[str] = [
     "PredOutput",
     "SinglePersonSchema",
     "TaskSchema",
-    "TaskStatusSchema",
 ]

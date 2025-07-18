@@ -39,6 +39,22 @@ class BaseSchema(BaseModel):
         arbitrary_types_allowed=True,
     )
 
+
+class BaseWithSerializerSchema(BaseModel):
+    """Base schema class that inherits from Pydantic BaseModel.
+
+    This class provides common configuration for all schema classes including
+    camelCase alias generation, population by field name, and attribute mapping.
+    It also includes a custom serializer for datetime fields.
+    """
+
+    model_config: ConfigDict = ConfigDict(  # type: ignore
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        arbitrary_types_allowed=True,
+    )
+
     @field_serializer(
         "created_at", "completed_at", "updated_at", "args", "kwargs", "result", "error", check_fields=False
     )
@@ -52,7 +68,7 @@ class BaseSchema(BaseModel):
 Float = Annotated[float, BeforeValidator(round_probability)]
 
 
-class PersonSchema(BaseSchema):
+class PersonSchema(BaseWithSerializerSchema):
     """Schema for a person."""
 
     person_id: str | None = Field(default=None, description="Unique identifier for the person.")
@@ -72,7 +88,7 @@ class PersonSchema(BaseSchema):
         return value.lower().strip()
 
 
-class SinglePersonSchema(BaseSchema):
+class SinglePersonSchema(BaseWithSerializerSchema):
     data: list[PersonSchema] = Field(description="List of people.")
 
     class Config:
@@ -98,13 +114,13 @@ class SinglePersonSchema(BaseSchema):
         }
 
 
-class MultiPersonsSchema(BaseSchema):
+class MultiPersonsSchema(BaseWithSerializerSchema):
     """Schema for multiple people."""
 
     persons: list[PersonSchema] = Field(description="List of people.")
 
 
-class TaskSchema(BaseSchema):
+class TaskSchema(BaseWithSerializerSchema):
     """Data schema for task results."""
 
     task_id: str = Field(default_factory=lambda: uuid4().hex, description="Task id")
@@ -116,7 +132,7 @@ class TaskSchema(BaseSchema):
     completed_at: datetime | None = Field(default=None, description="Completion time")
 
 
-class EmailSchema(BaseSchema):
+class EmailSchema(BaseWithSerializerSchema):
     """Data schema for email data."""
 
     recipient: str = Field(description="The recipient")
@@ -129,7 +145,7 @@ class EmailSchema(BaseSchema):
     sent_at: datetime | None = Field(default=None, description="Time sent")
 
 
-class JobProcessingSchema(BaseSchema):
+class JobProcessingSchema(BaseWithSerializerSchema):
     """Data schema for data processing job."""
 
     job_name: str = Field(description="The name of the job")
@@ -143,7 +159,7 @@ class JobProcessingSchema(BaseSchema):
     completed_at: datetime | None = Field(default=None, description="Completion time")
 
 
-class CeleryTasksLogSchema(BaseSchema):
+class CeleryTasksLogSchema(BaseWithSerializerSchema):
     """Data schema for celery task logs."""
 
     task_id: str = Field(description="The task id")
@@ -159,20 +175,3 @@ class CeleryTasksLogSchema(BaseSchema):
 
 
 # ====== API ENDPOINTS ======
-class GetTaskSchema(BaseSchema):
-    """
-    Data schema for task status.
-
-    Parameters
-    ----------
-    task_id : str
-        Task id
-    """
-
-    task_id: str = Field(description="Task id")
-
-    class Config:
-        validate_by_name = True
-        json_schema_extra = {
-            "examples": [{"task_id": "your_task_id"}],
-        }
