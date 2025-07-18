@@ -1,20 +1,24 @@
-# Batch-Process
+# Batch-Process With Celery
 
 ## Table of Contents
 
-- [Batch-Process](#batch-process)
+- [Batch-Process With Celery](#batch-process-with-celery)
   - [Table of Contents](#table-of-contents)
   - [Introduction](#introduction)
-  - [Code Linting and Formatting](#code-linting-and-formatting)
-    - [Linting](#linting)
-    - [Type Checking](#type-checking)
-    - [Lint and Type Check](#lint-and-type-check)
-      - [Locally](#locally)
-      - [CICD](#cicd)
+  - [Celery](#celery)
+    - [Configuration](#configuration)
+    - [Start Docker Compose](#start-docker-compose)
+    - [Start The Worker](#start-the-worker)
+    - [Start The Beat Scheduler](#start-the-beat-scheduler)
+      - [Beat Scheduler](#beat-scheduler)
+    - [Start The Producer](#start-the-producer)
+    - [Monitor Tasks](#monitor-tasks)
+      - [Built-in Task State Tracker](#built-in-task-state-tracker)
+  - [Putting It All Together](#putting-it-all-together)
   - [Deploy Locally (Docker Compose)](#deploy-locally-docker-compose)
     - [Build Images](#build-images)
     - [Run Services](#run-services)
-      - [Configure Docker Compose](#configure-docker-compose)
+    - [Configure Docker Compose](#configure-docker-compose)
 
 ## Introduction
 
@@ -28,48 +32,120 @@
     - Docker Compose
     - Kubernetes (Minikube)
 
-## Code Linting and Formatting
+## Celery
 
-- The code is linted and formatted using the following tools:
-  - Ruff
-  - MyPy (Type Checking)
-- The Makefile can be found [here](makefile).
+### Configuration
 
-### Linting
+- Add task routing and queues to `config/config.yaml`
+- Syntax:
+  - `path.to.module.*: { queue: queue_name }`
 
-- This will lint the code and fix any issues.
-
-```sh
-make lint-fix
+```yaml
+# Example (config/config.yaml)
+# Task routing and queues
+task_routes:
+  src.celery.tasks.email_tasks.*: { queue: email }
+  src.celery.tasks.data_processing.*: { queue: data }
+  src.celery.tasks.periodic_tasks.*: { queue: periodic }
 ```
 
-### Type Checking
-
-- This will type check the code.
+### Start Docker Compose
 
 ```sh
-make type-check
+# Start Docker Compose
+docker compose -f docker-compose-dev.yml up
+
+# Stop Docker Compose
+docker compose -f docker-compose-dev.yml down
 ```
 
-### Lint and Type Check
-
-#### Locally
-
-- This will lint and type check the code.
+### Start The Worker
 
 ```sh
-make format-fix
+uv run worker.py
 
-# OR
-make all
+# OR 
+uv run --active worker.py
 ```
 
-#### CICD
-
-- This will lint and type check the code without fixing any issues.
+### Start The Beat Scheduler
 
 ```sh
-make ci-check
+uv run celery -A path.to.module beat --loglevel=info
+
+# e.g.
+uv run celery -A src.celery.app beat --loglevel=info
+```
+
+#### Beat Scheduler
+
+- **Purpose**: Celery Beat is a scheduler designed for periodic tasks within the Celery framework.
+
+- **Mechanism**: It periodically checks a list of predefined tasks.
+
+- **Task Handling**: At their scheduled time, Celery Beat adds these tasks to a message broker (e.g., RabbitMQ, Redis).
+
+- **Execution**: Celery workers then pick up and execute these tasks.
+
+- **Role**: Essentially, Celery Beat acts as a clock that automatically triggers recurring background jobs such as:
+
+  - Sending daily emails
+  - Generating reports
+  - Cleaning up logs
+
+### Start The Producer
+
+```sh
+uv run main_logic.py
+```
+
+### Monitor Tasks
+
+- Monitor the tasks using [flower](https://flower.readthedocs.io/en/latest/)
+
+```sh
+uv run celery -A src.celery.app flower
+
+# With authentication
+export CELERY_FLOWER_USER=admin
+export CELERY_FLOWER_PASSWORD=password
+uv run celery -A src.celery.app flower --port:5555 --basic_auth=$CELERY_FLOWER_USER:$CELERY_FLOWER_PASSWORD
+```
+
+#### Built-in Task State Tracker
+
+```py
+from celery.result import AsyncResult
+
+# Get task result object
+result = AsyncResult(task_id)
+
+# Check status
+print(result.status)  # PENDING, STARTED, SUCCESS, FAILURE, RETRY, REVOKED
+print(result.info)    # Additional info about the task
+print(result.ready()) # True if task has finished
+```
+
+## Putting It All Together
+
+```sh
+# Stop Docker Compose (if running)
+docker compose -f docker-compose-dev.yml down
+
+# Start Docker Compose
+docker compose -f docker-compose-dev.yml up
+
+# Start The Worker
+uv run worker.py
+
+# Start The Beat Scheduler
+uv run celery -A src.celery.app beat --loglevel=info
+
+# Start Flower (Task Monitoring)
+uv run celery -A src.celery.app flower
+
+# Start The Producer/Tasks
+uv run main_logic.py
 ```
 
 ## Deploy Locally (Docker Compose)
@@ -78,10 +154,7 @@ make ci-check
 
 ```sh
 # Task Worker
-docker buildx build -t rmq-worker:v1 -f Dockerfile.worker .
-
-# Producer
-docker buildx build -t rmq-producer:v1 -f Dockerfile.producer .
+docker buildx build -t celery-worker:v1 -f Dockerfile .
 ```
 
 ### Run Services
@@ -110,7 +183,7 @@ docker-compose up -d --scale worker=N
 docker-compose down
 ```
 
-#### Configure Docker Compose
+### Configure Docker Compose
 
 - Configure watch in your Docker compose file to mount the project directory without syncing the project virtual environment and to rebuild the image when the configuration changes
 
@@ -129,6 +202,8 @@ services:
           # Folders and files to ignore
           ignore:
             - .venv
+            - "**/**/*.ipynb"
+            - "my_test.py"
         # Rebuild image if any of these files change
         - action: rebuild
           path: ./pyproject.toml
