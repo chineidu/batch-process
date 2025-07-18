@@ -1,4 +1,5 @@
 from typing import Any
+
 from fastapi import APIRouter, status
 
 from src import create_logger

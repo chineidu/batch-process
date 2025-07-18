@@ -102,6 +102,7 @@ def send_bulk_emails(emails: list[dict[str, str]]) -> dict[str, Any]:
     -------
     dict[str, Any]
     """
+    # Run the tasks in a group (parallel execution)
     job = group(send_email.s(email["recipient"], email["subject"], email["body"]) for email in emails)
     # Dispatch the tasks asynchronously
     result = job.apply_async()
