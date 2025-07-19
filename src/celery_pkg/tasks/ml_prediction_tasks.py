@@ -195,7 +195,6 @@ def process_bulk_data(data: list[dict[str, Any]]) -> dict[str, Any]:
         and the group ID for tracking the job.
     """
     try:
-
         job = group(process_ml_data_chunk.s(chunk, i) for i, chunk in enumerate(data))
         result = job.apply_async()
         return {
@@ -209,6 +208,7 @@ def process_bulk_data(data: list[dict[str, Any]]) -> dict[str, Any]:
         logger.error(f"[+] Error dispatching bulk data processing: {e}")
         raise
 
+
 @celery_app.task
 def ml_process_large_dataset(data: list[Any], chunk_size: int = 10) -> dict[str, Any]:
     """
@@ -218,7 +218,7 @@ def ml_process_large_dataset(data: list[Any], chunk_size: int = 10) -> dict[str,
         # Split data into chunks
         chunks: list[list[Any]] = [data[i : i + chunk_size] for i in range(0, len(data), chunk_size)]
 
-        # Create a chord: process chunks in parallel, then combine results
+        # Create a chord: process chunks in parallel using `group`, then combine results using `chord`
         job = chord(
             group(process_ml_data_chunk.s(chunk, i) for i, chunk in enumerate(chunks)),
             combine_processed_chunks.s(),
