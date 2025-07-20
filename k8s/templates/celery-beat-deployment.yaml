@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8s.fullname" . }}-celery-beat
+  labels:
+    {{- include "k8s.labels" . | nindent 4 }}
+    app.kubernetes.io/component: celery-beat
+spec:
+  replicas: {{ .Values.celeryBeat.replicas | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "k8s.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: celery-beat
+  template:
+    metadata:
+      labels:
+        {{- include "k8s.labels" . | nindent 8 }}
+        app.kubernetes.io/component: celery-beat
+    spec:
+      containers:
+      - name: celery-beat
+        image: "{{ .Values.celeryBeat.image.repository }}:{{ .Values.celeryBeat.image.tag }}"
+        imagePullPolicy: {{ .Values.celeryBeat.image.pullPolicy }}
+        command: {{ toYaml .Values.celeryBeat.command | nindent 12 }}
+        envFrom:
+        - configMapRef:
+            name: {{ .Values.config.configMapRef.name }}
+        - secretRef:
+            name: {{ .Values.config.secretRef.name }}
+        resources:
+          {{- toYaml .Values.celeryBeat.resources | nindent 12 }}

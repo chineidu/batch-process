@@ -1,0 +1,212 @@
+# Simplified Helm Chart Values for Celery Application Stack
+# values.yaml
+
+global:
+  imagePullPolicy: IfNotPresent
+
+rabbitmq:
+  enabled: true
+  image:
+    repository: rabbitmq
+    tag: 4.1.2-management
+  nameOverride: local-rabbitmq
+  service:
+    type: ClusterIP
+    ports:
+      amqp:
+        port: 5672
+        targetPort: 5672
+      management:
+        port: 15672
+        targetPort: 15672
+  persistence:
+    enabled: true
+    pvcName: rabbitmq-data-pvc
+    mountPath: /var/lib/rabbitmq
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: 17.5-bookworm
+  nameOverride: database
+  service:
+    type: ClusterIP
+    port: 5432
+    targetPort: 5432
+  persistence:
+    enabled: true
+    pvcName: postgres-data-pvc
+    mountPath: /var/lib/postgresql/data
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+celeryWorker:
+  enabled: true
+  image:
+    repository: chineidu/celery-worker
+    tag: v1
+  command: ["python", "worker.py"]
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  volumes:
+    data:
+      enabled: true
+      mountPath: /app/data
+      pvcName: app-data-pvc
+    models:
+      enabled: true
+      mountPath: /app/models
+      pvcName: models-data-pvc
+
+celeryPredictionWorker:
+  enabled: true
+  image:
+    repository: chineidu/celery-worker
+    tag: v1
+  command:
+    - celery
+    - -A
+    - src.celery_pkg.app
+    - worker
+    - --queues=prediction
+    - --concurrency=4
+    - --loglevel=info
+  replicas: 3
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  volumes:
+    data:
+      enabled: true
+      mountPath: /app/data
+      pvcName: app-data-pvc
+    models:
+      enabled: true
+      mountPath: /app/models
+      pvcName: models-data-pvc
+
+celeryBeat:
+  enabled: true
+  image:
+    repository: chineidu/celery-worker
+    tag: v1
+  command:
+    - celery
+    - -A
+    - src.celery_pkg.app
+    - beat
+    - --loglevel=info
+  replicas: 1
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+flower:
+  enabled: true
+  image:
+    repository: chineidu/celery-worker
+    tag: v1
+  command:
+    - celery
+    - -A
+    - src.celery_pkg.app
+    - flower
+    - --basic_auth=$(CELERY_FLOWER_USER):$(CELERY_FLOWER_PASSWORD)
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 5555
+    targetPort: 5555
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+api:
+  enabled: true
+  image:
+    repository: chineidu/celery-worker
+    tag: v1
+  command:
+    - python
+    - -m
+    - src.api.app
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  volumes:
+    data:
+      enabled: true
+      mountPath: /app/data
+      pvcName: app-data-pvc
+    models:
+      enabled: true
+      mountPath: /app/models
+      pvcName: models-data-pvc
+
+config:
+  configMapRef:
+    name: celery-app-config
+  secretRef:
+    name: celery-app-secrets
+
+pvc:
+  rabbitmqData:
+    enabled: true
+    name: rabbitmq-data-pvc
+    size: 1Gi
+    accessMode: ReadWriteOnce
+  postgresData:
+    enabled: true
+    name: postgres-data-pvc
+    size: 2Gi
+    accessMode: ReadWriteOnce
+  appData:
+    enabled: true
+    name: app-data-pvc
+    size: 1Gi
+    accessMode: ReadWriteMany
+  modelsData:
+    enabled: true
+    name: models-data-pvc
+    size: 500Mi
+    accessMode: ReadWriteMany

@@ -71,7 +71,7 @@ services:
       postgres:
         condition: service_healthy
 
-  celery-producer-worker: # 3rd service (copy)
+  celery-prediction-worker: # 3rd service (copy)
     image: chineidu/celery-worker:v1
     build:
       context: ./

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: celery-application
+description: A Helm chart for deploying a Celery application with RabbitMQ, PostgreSQL, and Flower
+
+type: application
+
+version: 1.0.0
+
+appVersion: 1.0.0

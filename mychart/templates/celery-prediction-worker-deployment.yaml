@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8s.fullname" . }}-celery-prediction-worker
+  labels:
+    {{- include "k8s.labels" . | nindent 4 }}
+    app.kubernetes.io/component: celery-prediction-worker
+spec:
+  replicas: {{ .Values.celeryPredictionWorker.replicas | default 3 }}
+  selector:
+    matchLabels:
+      {{- include "k8s.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: celery-prediction-worker
+  template:
+    metadata:
+      labels:
+        {{- include "k8s.labels" . | nindent 8 }}
+        app.kubernetes.io/component: celery-prediction-worker
+    spec:
+      containers:
+      - name: celery-prediction-worker
+        image: "{{ .Values.celeryPredictionWorker.image.repository }}:{{ .Values.celeryPredictionWorker.image.tag }}"
+        imagePullPolicy: {{ .Values.celeryPredictionWorker.image.pullPolicy }}
+        command: {{ toYaml .Values.celeryPredictionWorker.command | nindent 12 }}
+        envFrom:
+        - configMapRef:
+            name: {{ .Values.config.configMapRef.name }}
+        - secretRef:
+            name: {{ .Values.config.secretRef.name }}
+        resources:
+          {{- toYaml .Values.celeryPredictionWorker.resources | nindent 12 }}
+        volumeMounts:
+        {{- if .Values.celeryPredictionWorker.volumes.data.enabled }}
+        - name: app-data
+          mountPath: {{ .Values.celeryPredictionWorker.volumes.data.mountPath }}
+        {{- end }}
+        {{- if .Values.celeryPredictionWorker.volumes.models.enabled }}
+        - name: models-data
+          mountPath: {{ .Values.celeryPredictionWorker.volumes.models.mountPath }}
+        {{- end }}
+      volumes:
+      {{- if .Values.celeryPredictionWorker.volumes.data.enabled }}
+      - name: app-data
+        persistentVolumeClaim:
+          claimName: {{ .Values.pvc.appData.name }}
+      {{- end }}
+      {{- if .Values.celeryPredictionWorker.volumes.models.enabled }}
+      - name: models-data
+        persistentVolumeClaim:
+          claimName: {{ .Values.pvc.modelsData.name }}
+      {{- end }}

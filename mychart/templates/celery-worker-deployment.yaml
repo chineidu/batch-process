@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8s.fullname" . }}-celery-worker
+  labels:
+    {{- include "k8s.labels" . | nindent 4 }}
+    app.kubernetes.io/component: celery-worker
+spec:
+  replicas: {{ .Values.celeryWorker.replicas | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "k8s.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: celery-worker
+  template:
+    metadata:
+      labels:
+        {{- include "k8s.labels" . | nindent 8 }}
+        app.kubernetes.io/component: celery-worker
+    spec:
+      containers:
+      - name: celery-worker
+        image: "{{ .Values.celeryWorker.image.repository }}:{{ .Values.celeryWorker.image.tag }}"
+        imagePullPolicy: {{ .Values.celeryWorker.image.pullPolicy }}
+        command: {{ toYaml .Values.celeryWorker.command | nindent 12 }}
+        envFrom:
+        - configMapRef:
+            name: {{ .Values.config.configMapRef.name }}
+        - secretRef:
+            name: {{ .Values.config.secretRef.name }}
+        env:
+        - name: CELERY_WORKER_TYPE
+          value: {{ .Values.celeryWorker.env.CELERY_WORKER_TYPE | default "light" }}
+        resources:
+          {{- toYaml .Values.celeryWorker.resources | nindent 12 }}
+        volumeMounts:
+        {{- if .Values.celeryWorker.volumes.data.enabled }}
+        - name: app-data
+          mountPath: {{ .Values.celeryWorker.volumes.data.mountPath }}
+        {{- end }}
+        {{- if .Values.celeryWorker.volumes.models.enabled }}
+        - name: models-data
+          mountPath: {{ .Values.celeryWorker.volumes.models.mountPath }}
+        {{- end }}
+      volumes:
+      {{- if .Values.celeryWorker.volumes.data.enabled }}
+      - name: app-data
+        persistentVolumeClaim:
+          claimName: {{ .Values.pvc.appData.name }}
+      {{- end }}
+      {{- if .Values.celeryWorker.volumes.models.enabled }}
+      - name: models-data
+        persistentVolumeClaim:
+          claimName: {{ .Values.pvc.modelsData.name }}
+      {{- end }}
