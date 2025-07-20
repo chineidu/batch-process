@@ -6,7 +6,7 @@ from src import create_logger
 from src.celery_pkg.tasks import process_single_data
 from src.celery_pkg.tasks.ml_prediction_tasks import process_bulk_data
 from src.schemas import MultiplePersonSchema, SinglePersonSchema
-
+from src.config import app_config
 logger = create_logger(name="prediction")
 router = APIRouter(tags=["prediction"])
 
@@ -46,23 +46,23 @@ async def predict_multiple(data: MultiplePersonSchema) -> dict[str, Any]:
     Parameters
     ----------
     data : SinglePersonSchema
-        The input data for the prediction, encapsulated in a SinglePersonSchema.
+        The input data for the prediction, encapsulated in a MultiplePersonSchema.
 
     Returns
     -------
     dict
-        The result of the prediction, containing the status and response.
+        The prediction status and task IDs(s)
 
     Raises
     ------
     Exception
         If there is an error during prediction processing or the task times out.
     """
-    logger.info("Making batch prediction ...")
+    logger.info("Making batch predictions ...")
 
     _data: list[dict[str, Any]] = data.model_dump()["data"]
     # Chunk data
-    chunk_size: int = 1_000
+    chunk_size: int = app_config.api_config.batch_size
     chunks: list[list[dict[str, Any]]] = [_data[i : i + chunk_size] for i in range(0, len(_data), chunk_size)]
     result = process_bulk_data.delay(chunks)
 

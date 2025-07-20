@@ -301,6 +301,8 @@ class CeleryTasksLog(Base):
 
 # ===== Mixins =====
 class DatabaseLoggingMixin:
+    length: int = 1_500
+
     def _save_log(self, task_id: str, status: str, **extra_data: dict[str, Any]) -> None:
         """Saves a log entry for a Celery task in the database.
 
@@ -366,7 +368,9 @@ class DatabaseLoggingMixin:
         and ensures that the parent's `on_success` is called if it exists.
         The signature must match the parent's `on_success` method.
         """
-        retval = str(retval)[:1_000]  # Truncate long results
+        retval = str(retval)[:self.length]  # Truncate long results
+        args = str(args)[:self.length]
+        kwargs = str(kwargs)[:self.length]
         task_name = self.name  # type: ignore
         self._save_log(task_id, task_name=task_name, status="SUCCESS", result=retval, args=args, kwargs=kwargs)
         # Call paret's on_success method if it exists
@@ -400,7 +404,9 @@ class DatabaseLoggingMixin:
         and ensures that the parent's `on_failure` is called if it exists.
         The signature must match the parent's `on_failure` method.
         """
-        einfo = str(einfo)[:1_000]  # Truncate long results
+        einfo = str(einfo)[:self.length]  # Truncate long results
+        args = str(args)[:self.length]
+        kwargs = str(kwargs)[:self.length]
         task_name = self.name  # type: ignore
         self._save_log(task_id, task_name=task_name, status="FAILURE", args=args, kwargs=kwargs, error=einfo)
         # Call paret's on_failure method if it exists
@@ -434,7 +440,9 @@ class DatabaseLoggingMixin:
         and ensures that the parent's `on_retry` is called if it exists.
         The signature must match the parent's `on_retry` method.
         """
-        einfo = str(einfo)[:1_000]  # Truncate long results
+        einfo = str(einfo)[:self.length]  # Truncate long results
+        args = str(args)[:self.length]
+        kwargs = str(kwargs)[:self.length]
         task_name = self.name  # type: ignore
         self._save_log(task_id, task_name=task_name, status="RETRY", args=args, kwargs=kwargs, error=einfo)
         # Call paret's on_retry method if it exists

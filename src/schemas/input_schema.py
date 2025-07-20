@@ -56,7 +56,14 @@ class BaseWithSerializerSchema(BaseModel):
     )
 
     @field_serializer(
-        "created_at", "completed_at", "updated_at", "args", "kwargs", "result", "error", check_fields=False
+        "created_at",
+        "completed_at",
+        "updated_at",
+        "args",
+        "kwargs",
+        "result",
+        "error",
+        check_fields=False,  # enable ignoring of missing fields
     )
     def serialize(self, value: Any) -> str:
         """Serializes datetime fields to ISO format."""

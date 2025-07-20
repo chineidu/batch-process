@@ -47,8 +47,8 @@ app_config:
       src.celery_pkg.tasks.ml_prediction_tasks.*: { queue: prediction }
 
     worker_config:
-      worker_prefetch_multiplier: 1
-      task_acks_late: true
+      worker_prefetch_multiplier: 1  # Busy workers are only assigned 1 task
+      task_acks_late: true  # Acknowledge tasks after completion
       worker_max_tasks_per_child: 1000
 
     beat_config:
@@ -74,7 +74,7 @@ app_config:
     description: API for processing large datasets
     version: v0.2.5
     status: healthy
-    batch_size: 5
+    batch_size: 500
     prefix: /api/v1
 
     # Server Settings

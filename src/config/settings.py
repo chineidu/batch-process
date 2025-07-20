@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # ======= Celery settings =======
     CELERY_FLOWER_USER: str
     CELERY_FLOWER_PASSWORD: SecretStr
+    CELERY_WORKER_TYPE: Literal["light", "heavy"] = "light"
 
     @property
     def rabbitmq_url(self) -> str:

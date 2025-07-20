@@ -46,6 +46,7 @@ services:
     environment:
       - RABBITMQ_HOST=local-rabbitmq
       - POSTGRES_HOST=database
+      - CELERY_WORKER_TYPE=light
     env_file:
       - .env
     volumes:
@@ -64,6 +65,33 @@ services:
         # Rebuild image if any of these files change
         - action: rebuild
           path: ./pyproject.toml
+    depends_on:
+      local-rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  celery-producer-worker: # 3rd service (copy)
+    image: celery-worker:v1
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    # Remove name to allow Docker to automatically generate a name
+    # when you have more than one replica
+    # container_name: celery-worker
+    command: > 
+      celery -A src.celery_pkg.app worker --queues=prediction 
+      --concurrency=4 --loglevel=info
+    deploy:
+      replicas: 3  # 4 * 3 = 12 workers
+    environment:
+      - RABBITMQ_HOST=local-rabbitmq
+      - POSTGRES_HOST=database
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data  # Bind mount for the data folder
+      - ./models:/app/models
     depends_on:
       local-rabbitmq:
         condition: service_healthy
