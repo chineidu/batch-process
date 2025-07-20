@@ -37,7 +37,7 @@ services:
       retries: 5
 
   celery-worker: # 3rd service
-    image: celery-worker:v1
+    image: chineidu/celery-worker:v1
     build:
       context: ./
       dockerfile: Dockerfile
@@ -72,7 +72,7 @@ services:
         condition: service_healthy
 
   celery-producer-worker: # 3rd service (copy)
-    image: celery-worker:v1
+    image: chineidu/celery-worker:v1
     build:
       context: ./
       dockerfile: Dockerfile
@@ -99,7 +99,7 @@ services:
         condition: service_healthy
 
   celery-beat: # 4th service
-      image: celery-worker:v1
+      image: chineidu/celery-worker:v1
       build:
         context: ./
       container_name: celery-beat
@@ -116,7 +116,7 @@ services:
           condition: service_healthy
 
   flower: # 5th service
-      image: celery-worker:v1
+      image: chineidu/celery-worker:v1
       build:
         context: ./
       container_name: celery-flower
@@ -135,6 +135,31 @@ services:
           condition: service_healthy
         postgres:
           condition: service_healthy
+  api: # 6th service
+    image: chineidu/celery-worker:v1
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    # Remove name to allow Docker to automatically generate a name
+    # when you have more than one replica
+    # container_name: api
+    command: > 
+      python -m src.api.app
+    environment:
+      - RABBITMQ_HOST=local-rabbitmq
+      - POSTGRES_HOST=database
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data  # Bind mount for the data folder
+      - ./models:/app/models
+    depends_on:
+      local-rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
 
 # Named volumes ONLY!
 # Persist data outside the lifecycle of the container.

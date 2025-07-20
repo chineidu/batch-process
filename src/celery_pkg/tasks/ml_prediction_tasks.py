@@ -44,11 +44,18 @@ def process_single_data(self, data: dict[str, Any]) -> dict[str, Any]:  # noqa: 
         # Data processing
         record = PersonSchema(**data)
         data_dict: dict[str, Any] = _get_prediction(record, model_dict)[0]
-        response: dict[str, Any] = ModelOutput(**{"data": data_dict, "status": "success"}).model_dump()  # type: ignore
+        pred: dict[str, Any] = ModelOutput(**{"data": data_dict, "status": "success"}).model_dump()  # type: ignore
+
+        # Save to database
+        with get_db_session() as session:
+            # Save input
+            session.execute(insert(PersonLog), [record.model_dump()])
+            session.execute(insert(PredictionLog), [pred])
+
         logger.info("[+] Successfully processed data")
         return {
             "status": "success",
-            "response": response,
+            "response": pred,
             "sent_at": datetime.now().isoformat(),
         }
 
