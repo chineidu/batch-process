@@ -88,32 +88,6 @@ class PersonSchema(BaseWithSerializerSchema):
         return value.lower().strip()
 
 
-class SinglePersonSchema(BaseWithSerializerSchema):
-    data: list[PersonSchema] = Field(description="List of people.")
-
-    class Config:
-        validate_by_name = True
-        json_schema_extra = {
-            "examples": [
-                {
-                    "data": [
-                        {
-                            "person_id": "1",
-                            "sex": "male",
-                            "age": 22.0,
-                            "pclass": 3,
-                            "sibsp": 1,
-                            "parch": 0,
-                            "fare": 7.25,
-                            "embarked": "s",
-                            "survived": 1,
-                        }
-                    ]
-                }
-            ]
-        }
-
-
 class MultiPersonsSchema(BaseWithSerializerSchema):
     """Schema for multiple people."""
 
@@ -175,3 +149,62 @@ class CeleryTasksLogSchema(BaseWithSerializerSchema):
 
 
 # ====== API ENDPOINTS ======
+class SinglePersonSchema(BaseWithSerializerSchema):
+    data: list[PersonSchema] = Field(description="List of people.")
+
+    class Config:
+        validate_by_name = True
+        json_schema_extra = {
+            "examples": [
+                {
+                    "data": [
+                        {
+                            "person_id": "1",
+                            "sex": "male",
+                            "age": 22.0,
+                            "pclass": 3,
+                            "sibsp": 1,
+                            "parch": 0,
+                            "fare": 7.25,
+                            "embarked": "s",
+                            "survived": 1,
+                        }
+                    ]
+                }
+            ]
+        }
+
+
+class MultiplePersonSchema(BaseWithSerializerSchema):
+    data: list[PersonSchema] = Field(description="List of people.")
+
+    class Config:
+        validate_by_name = True
+        json_schema_extra = {
+            "examples": [
+                {
+                    "data": [
+                        {
+                            "person_id": "1",
+                            "sex": "male",
+                            "age": 22.0,
+                            "pclass": 3,
+                            "sibsp": 1,
+                            "parch": 0,
+                            "fare": 7.25,
+                            "embarked": "s",
+                        },
+                        {
+                            "person_id": "2",
+                            "sex": "female",
+                            "age": 38.0,
+                            "pclass": 1,
+                            "sibsp": 1,
+                            "parch": 0,
+                            "fare": 71.28,
+                            "embarked": "c",
+                        },
+                    ]
+                }
+            ]
+        }

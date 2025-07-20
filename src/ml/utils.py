@@ -107,7 +107,7 @@ def get_batch_prediction(
     """
     data_dict: list[dict[str, Any]] = _get_prediction(record, model_dict)
     output: MultiPredOutput = MultiPredOutput(
-        outputs=[ModelOutput(**{"data": row}) for row in data_dict]  # type: ignore
+        outputs=[ModelOutput(**{"data": row, "status": "success"}) for row in data_dict]  # type: ignore
     )
     return output
 

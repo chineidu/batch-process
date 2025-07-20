@@ -9,8 +9,8 @@ from sqlalchemy import insert
 from src import create_logger
 from src.celery_pkg import celery_app
 from src.database.db_models import MLTask, PersonLog, PredictionLog, PredictionProcessingJobLog, get_db_session
-from src.ml.utils import _get_prediction
-from src.schemas import JobProcessingSchema, ModelOutput, PersonSchema
+from src.ml.utils import _get_prediction, get_batch_prediction
+from src.schemas import JobProcessingSchema, ModelOutput, MultiPersonsSchema, PersonSchema
 
 logger = create_logger(name="ml_prediction")
 
@@ -81,11 +81,13 @@ def process_ml_data_chunk(self, chunk_data: list[dict[str, Any]], chunk_id: int)
 
         # Load model
         model_dict = self.model_dict
+        records: MultiPersonsSchema = MultiPersonsSchema(persons=chunk_data)  # type: ignore
+        pred_data: list[dict[str, Any]] = get_batch_prediction(records, model_dict).model_dump()["outputs"]
 
         processed_data: list[dict[str, Any]] = []
         total_items: int | None = len(chunk_data)
 
-        for i, item in enumerate(chunk_data):
+        for i, (item, pred) in enumerate(zip(chunk_data, pred_data)):
             # Update task progress
             current_task.update_state(
                 state="PROGRESS",
@@ -98,10 +100,6 @@ def process_ml_data_chunk(self, chunk_data: list[dict[str, Any]], chunk_id: int)
             with get_db_session() as session:
                 # Save input
                 session.execute(insert(PersonLog), [record.model_dump()])
-
-                data_dict: dict[str, Any] = _get_prediction(record, model_dict)[0]
-                pred = ModelOutput(**{"data": data_dict, "status": "success"}).model_dump()  # type: ignore
-                # Save output
                 session.execute(insert(PredictionLog), [pred])
                 processed_data.append(pred)
 
@@ -179,14 +177,14 @@ def combine_processed_chunks(chunked_results: list[dict[str, Any]]) -> dict[str,
 
 
 @celery_app.task
-def process_bulk_data(data: list[dict[str, Any]]) -> dict[str, Any]:
+def process_bulk_data(data: list[list[dict[str, Any]]]) -> dict[str, Any]:
     """
     Dispatch a bulk data processing job using Celery.
 
     Parameters
     ----------
-    data : list[dict[str, Any]]
-        List of data dictionaries to be processed in bulk.
+    data : list[list[dict[str, Any]]]
+        List of data chunks to be processed in bulk.
 
     Returns
     -------
@@ -197,11 +195,14 @@ def process_bulk_data(data: list[dict[str, Any]]) -> dict[str, Any]:
     try:
         job = group(process_ml_data_chunk.s(chunk, i) for i, chunk in enumerate(data))
         result = job.apply_async()
+        # Get individual task IDs
+        task_ids = [child.id for child in result.children]
         return {
             "status": "dispatched",
             "total_items": len(data),
             "chunks": len(data),
             "group_id": result.id,
+            "task_ids": task_ids,
         }
 
     except Exception as e:

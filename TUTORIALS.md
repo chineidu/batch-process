@@ -8,19 +8,26 @@
 
 ## Different Ways of Invoking Tasks
 
-1) Using `.delay()` method: This is the simplest way to invoke a task. It sends the task to the queue for execution and returns an `AsyncResult` object without waiting for the task to complete.
+1) Using `.delay()` method:
+   - This is the simplest way to invoke a task.
+   - It sends the task to the queue for execution and returns an `AsyncResult` object without waiting for the task to complete.
 
    ```py
    my_task.delay(arg1,arg2, kwarg1=kwarg1, kwarg2=kwarg2)
    ```
 
-2) Using `apply_async()` method: This sends the task to the queue for execution and returns an `AsyncResult` object. It provides more control over task execution.
+2) Using `apply_async()` method:
+   - This sends the task to the queue for execution and returns an `AsyncResult` object.
+   - It provides more control over task execution.
 
    ```py
    my_task.apply_async(args=[arg1, arg2], kwargs={'kwarg1': kwarg1}, countdown=10)
    ```
 
-3) Using `send_task()` method: This sends the task to the queue for execution by `name`. Ideal when the sender doesn't have the task code loaded, or when working across services.
+3) Using `send_task()` method:
+
+   - This sends the task to the queue for execution by `name`.
+   - This is used when the task is not imported in the module.
 
    ```py
    from celery import send_task
@@ -31,7 +38,8 @@
 
    ```
 
-4) Using `group` Method: This method allows you to group multiple tasks together and execute them in parallel.
+4) Using `group` Method:
+   - This method allows you to group multiple tasks together and execute them in `parallel`.
 
    ```py
    from celery import group
@@ -40,7 +48,8 @@
    result = job.apply_async()
    ```
 
-5) Using `chord` Method: This method allows you to execute a group of tasks in parallel and then execute a callback task once all the tasks in the group have completed.
+5) Using `chord` Method:
+   - This method allows you to execute a group of tasks in parallel and then execute a callback task once all the tasks in the group have completed.
 
    ```py
    @app.task
@@ -60,22 +69,22 @@
    result = job.apply_async()
    ```
 
-6) Using `chain` Method: This method allows you to chain multiple tasks together so that they execute sequentially.
+6) Using `chain` Method:
+   - This method allows you to chain multiple tasks together so that they execute `sequentially`.
+   - You canchain using `,` or `|`.
 
    ```py
    from celery import chain
 
+   # Using `|` notation
    job = chain(task.s(arg1, arg2) | task.s() | task.s())
    result = job.apply_async()
-   Using signature Method: This method allows you to create a signature of a task that can be used to invoke the task later.
    ```
 
-7) Using `signature` Method: This method allows you to create a signature of a task that can be used to invoke the task later.
+   - If you want to chain tasks without passing inputs, use the `task.si()` method.
+   - This ensures the tasks run sequentially without depending on the output of the previous task.
 
-```py
-from celery import signature
-sig = signature('tasks.add', args=[arg1, arg2], kwargs={'kwargs1': 'x'})
-result = sig.apply_async()
-```
-
-
+   ```py
+   # Using `,` notation
+   job = chain(save_user_payment_task.si(), notify_user_task.si(), user_order_task.si())
+   ```

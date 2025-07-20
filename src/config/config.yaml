@@ -44,7 +44,7 @@ app_config:
       src.celery_pkg.tasks.email_tasks.*: { queue: email }
       src.celery_pkg.tasks.data_processing.*: { queue: data }
       src.celery_pkg.tasks.periodic_tasks.*: { queue: periodic }
-      src.celery_pkg.tasks.ml_prediction_tasks.*: { queue: predict }
+      src.celery_pkg.tasks.ml_prediction_tasks.*: { queue: prediction }
 
     worker_config:
       worker_prefetch_multiplier: 1

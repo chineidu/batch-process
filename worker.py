@@ -16,7 +16,7 @@ def run_worker() -> None:
         "worker",
         "--loglevel=info",
         "--concurrency=4",
-        "--queues=email,data,periodic,celery,predict",
+        "--queues=email,data,periodic,celery,prediction",
         "--hostname=worker@%h",
     ])
 

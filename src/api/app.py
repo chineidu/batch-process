@@ -5,7 +5,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routes import health, prediction
+from src.api.routes.v1 import health, prediction
 from src.api.utilities import lifespan
 from src.config import app_config
 

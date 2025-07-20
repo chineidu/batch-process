@@ -94,7 +94,7 @@ class PersonLog(Base):
 
     __tablename__: str = "persons"
     id: Mapped[int] = mapped_column(primary_key=True)
-    person_id: Mapped[str] = mapped_column("personId", String(50), unique=True, index=True)
+    person_id: Mapped[str] = mapped_column("personId", String(50), index=True)
     sex: Mapped[str] = mapped_column(String(8))
     age: Mapped[float] = mapped_column(Float)
     pclass: Mapped[int] = mapped_column(Integer)

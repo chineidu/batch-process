@@ -107,4 +107,7 @@ def send_bulk_emails(emails: list[dict[str, str]]) -> dict[str, Any]:
     # Dispatch the tasks asynchronously
     result = job.apply_async()
 
-    return {"status": "dispatched", "total_emails": len(emails), "group_id": result.id}
+    # Get individual task IDs
+    task_ids = [child.id for child in result.children]
+
+    return {"status": "dispatched", "total_emails": len(emails), "group_id": result.id, "task_ids": task_ids}
