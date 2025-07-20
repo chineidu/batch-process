@@ -1,3 +1,5 @@
+from typing import Any
+
 from celery.result import AsyncResult
 from fastapi import APIRouter, status
 
@@ -38,11 +40,18 @@ async def task_status(task_id: str) -> APITaskStatusSchema:
 
     if task.state == "SUCCESS":
         try:
-            return APITaskStatusSchema(**{"task_id": task_id, "status": "SUCCESS", "result": task.result})  # type: ignore
+            result: list[dict[str, Any]] = task.result["output_data"]
+            return APITaskStatusSchema(**{
+                "task_id": task_id,
+                "status": "SUCCESS",
+                "num_records": len(result),
+                "processing_time": task.result["processing_time"],
+                "result": result,
+            })  # type: ignore
         except KeyError:
-            return APITaskStatusSchema(**{"task_id": task_id, "status": "FAILURE", "result": {}})  # type: ignore
+            return APITaskStatusSchema(**{"task_id": task_id, "status": "FAILURE", "result": []})  # type: ignore
 
     if task.state == "PENDING":
-        return APITaskStatusSchema(**{"task_id": task_id, "status": "PENDING", "result": {}})  # type: ignore
+        return APITaskStatusSchema(**{"task_id": task_id, "status": "PENDING", "result": []})  # type: ignore
 
-    return APITaskStatusSchema(**{"task_id": task_id, "status": "FAILURE", "result": {}})  # type: ignore
+    return APITaskStatusSchema(**{"task_id": task_id, "status": "FAILURE", "result": []})  # type: ignore

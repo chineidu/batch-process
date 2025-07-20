@@ -36,77 +36,77 @@ services:
       timeout: 10s
       retries: 5
 
-  # celery-worker: # 3rd service
-  #   image: celery-worker:v1
-  #   build:
-  #     context: ./
-  #     dockerfile: Dockerfile
-  #   container_name: celery-worker
-  #   command: python worker.py
-  #   environment:
-  #     - RABBITMQ_HOST=local-rabbitmq
-  #     - POSTGRES_HOST=database
-  #   env_file:
-  #     - .env
-  #   volumes:
-  #     - ./data:/app/data  # Bind mount for the data folder
-  #     - ./models:/app/models
-  #   develop:
-  #   # Create a `watch` configuration to update the app
-  #     watch:
-  #       - action: sync
-  #         path: ./
-  #         target: /app
-  #         # Folders and files to ignore
-  #         ignore:
-  #           - .venv
-  #           - "**/**/*.ipynb"
-  #       # Rebuild image if any of these files change
-  #       - action: rebuild
-  #         path: ./pyproject.toml
-  #   depends_on:
-  #     local-rabbitmq:
-  #       condition: service_healthy
-  #     postgres:
-  #       condition: service_healthy
+  celery-worker: # 3rd service
+    image: celery-worker:v1
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: celery-worker
+    command: python worker.py
+    environment:
+      - RABBITMQ_HOST=local-rabbitmq
+      - POSTGRES_HOST=database
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data  # Bind mount for the data folder
+      - ./models:/app/models
+    develop:
+    # Create a `watch` configuration to update the app
+      watch:
+        - action: sync
+          path: ./
+          target: /app
+          # Folders and files to ignore
+          ignore:
+            - .venv
+            - "**/**/*.ipynb"
+        # Rebuild image if any of these files change
+        - action: rebuild
+          path: ./pyproject.toml
+    depends_on:
+      local-rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
 
-  # celery-beat: # 4th service
-  #     image: celery-worker:v1
-  #     build:
-  #       context: ./
-  #     container_name: celery-beat
-  #     environment:
-  #     - RABBITMQ_HOST=local-rabbitmq
-  #     - POSTGRES_HOST=database
-  #     env_file:
-  #       - .env
-  #     command: celery -A src.celery.app beat --loglevel=info
-  #     depends_on:
-  #       local-rabbitmq:
-  #         condition: service_healthy
-  #       postgres:
-  #         condition: service_healthy
+  celery-beat: # 4th service
+      image: celery-worker:v1
+      build:
+        context: ./
+      container_name: celery-beat
+      environment:
+      - RABBITMQ_HOST=local-rabbitmq
+      - POSTGRES_HOST=database
+      env_file:
+        - .env
+      command: celery -A src.celery_pkg.app beat --loglevel=info
+      depends_on:
+        local-rabbitmq:
+          condition: service_healthy
+        postgres:
+          condition: service_healthy
 
-  # flower: # 5th service
-  #     image: celery-worker:v1
-  #     build:
-  #       context: ./
-  #     container_name: celery-flower
-  #     command: >
-  #       celery -A src.celery.app flower 
-  #       --basic_auth=$CELERY_FLOWER_USER:$CELERY_FLOWER_PASSWORD
-  #     environment:
-  #     - RABBITMQ_HOST=local-rabbitmq
-  #     - POSTGRES_HOST=database
-  #     env_file:
-  #       - .env
-  #     ports:
-  #       - "5555:5555"
-  #     depends_on:
-  #       local-rabbitmq:
-  #         condition: service_healthy
-  #       postgres:
-  #         condition: service_healthy
+  flower: # 5th service
+      image: celery-worker:v1
+      build:
+        context: ./
+      container_name: celery-flower
+      command: >
+        celery -A src.celery_pkg.app flower 
+        --basic_auth=$CELERY_FLOWER_USER:$CELERY_FLOWER_PASSWORD
+      environment:
+      - RABBITMQ_HOST=local-rabbitmq
+      - POSTGRES_HOST=database
+      env_file:
+        - .env
+      ports:
+        - "5555:5555"
+      depends_on:
+        local-rabbitmq:
+          condition: service_healthy
+        postgres:
+          condition: service_healthy
 
 # Named volumes ONLY!
 # Persist data outside the lifecycle of the container.

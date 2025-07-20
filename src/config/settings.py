@@ -22,7 +22,6 @@ class Settings(BaseSettings):
     RABBITMQ_DEFAULT_PASS: SecretStr
     RABBITMQ_EXPIRATION_MS: int = 3_600_000  # 60 minutes
     RABBITMQ_HEARTBEAT: int = 600
-    RABBITMQ_DIRECT_EXCHANGE: str = "person_exchange"
 
     # ======= Database settings =======
     POSTGRES_USER: str

@@ -39,7 +39,7 @@ async def predict_single(data: SinglePersonSchema) -> None:
 
 
 @router.post("/predict-multiple-data", status_code=status.HTTP_200_OK)
-async def predict_multiple(data: MultiplePersonSchema) -> None:
+async def predict_multiple(data: MultiplePersonSchema) -> dict[str, Any]:
     """
     Handle a POST request to make a single prediction.
 
@@ -58,11 +58,12 @@ async def predict_multiple(data: MultiplePersonSchema) -> None:
     Exception
         If there is an error during prediction processing or the task times out.
     """
-    logger.info("Making prediction ...")
+    logger.info("Making batch prediction ...")
 
     _data: list[dict[str, Any]] = data.model_dump()["data"]
     # Chunk data
-    chunk_size: int = 20
-    chunks = [_data[i : i + chunk_size] for i in range(0, len(_data), chunk_size)]
+    chunk_size: int = 1_000
+    chunks: list[list[dict[str, Any]]] = [_data[i : i + chunk_size] for i in range(0, len(_data), chunk_size)]
     result = process_bulk_data.delay(chunks)
-    return result.get(timeout=60)
+
+    return result.get(timeout=30)

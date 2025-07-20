@@ -28,7 +28,6 @@ help:
 	@echo "  make beat           			Run beat (celery beat)"
 	@echo "  make flower           			Run flower (task monitoring)"
 	@echo "  make producer         			Run producer.py"
-	@echo "  make compose-build    			Build Docker Compose development environment"
 	@echo "  make compose-watch    			Watch for changes & rebuild Docker Compose development environment"
 	@echo "  make compose-up       			Start Docker Compose development environment"
 	@echo "  make compose-down     			Stop Docker Compose development environment"
@@ -82,13 +81,13 @@ worker:
 
 beat:
 	@echo "Running Celery beat..."
-	@bash -c "uv run celery -A src.celery.app beat --loglevel=info"
+	@bash -c "uv run celery -A src.celery_pkg.app beat --loglevel=info"
 
 flower:
 	# Load environment variables stored in .env
 	@set -a && . ./.env && set +a && \
 	echo "Running Celery flower..."
-	@bash -c "uv run celery -A src.celery.app flower --basic_auth=$$CELERY_FLOWER_USER:$$CELERY_FLOWER_PASSWORD"
+	@bash -c "uv run celery -A src.celery_pkg.app flower --basic_auth=$$CELERY_FLOWER_USER:$$CELERY_FLOWER_PASSWORD"
 
 producer:
 	@echo "Running Celery producer..."
@@ -109,11 +108,6 @@ compose-down-volumes:
 
 compose-up: compose-down
 	@echo "Starting Docker Compose development environment..."
-	docker compose -f ${COMPOSE_FILE} up -d
-	@echo "Docker Compose development environment started."
-
-compose-build:
-	@echo "Starting Docker Compose development with build environment..."
 	docker compose -f ${COMPOSE_FILE} up --build -d
 	@echo "Docker Compose development environment started."
 

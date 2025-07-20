@@ -61,4 +61,6 @@ class APITaskStatusSchema(BaseModel):
 
     task_id: str = Field(description="Task id")
     status: Literal["PENDING", "STARTED", "SUCCESS", "FAILURE"] = Field(default="PENDING", description="Task status")
-    result: dict[str, Any] = Field(default_factory=dict, description="Task result")
+    num_records: int = Field(default=0, description="The total number of records")
+    processing_time: Float = Field(default=0.0, description="The total processing time")
+    result: list[dict[str, Any]] = Field(default_factory=list, description="Task result")

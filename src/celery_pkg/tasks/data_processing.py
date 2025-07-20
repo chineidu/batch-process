@@ -64,7 +64,7 @@ def process_data_chunk(self, chunk_data: list[str], chunk_id: int) -> dict[str, 
 
         return {
             "chunk_id": chunk_id,
-            "processed_data": processed_data,
+            "output_data": processed_data,
             "processing_time": processing_time,
             "items_count": total_items,
         }
