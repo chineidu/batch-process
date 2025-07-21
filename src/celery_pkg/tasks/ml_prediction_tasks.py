@@ -38,6 +38,7 @@ def process_single_data(self, data: dict[str, Any]) -> dict[str, Any]:  # noqa: 
         Any error that occurs during data processing.
     """
     try:
+        start_time: float = time.time()
         # Load model
         model_dict: dict[str, Any] = self.model_dict
 
@@ -55,7 +56,8 @@ def process_single_data(self, data: dict[str, Any]) -> dict[str, Any]:  # noqa: 
         logger.info("[+] Successfully processed data")
         return {
             "status": "success",
-            "response": pred,
+            "response": [pred],
+            "processing_time": time.time() - start_time,
             "sent_at": datetime.now().isoformat(),
         }
 
@@ -114,7 +116,7 @@ def process_ml_data_chunk(self, chunk_data: list[dict[str, Any]], chunk_id: int)
         return {
             "chunk_id": chunk_id,
             "input_data": chunk_data,
-            "output_data": processed_data,
+            "response": processed_data,
             "processing_time": processing_time,
             "item_count": total_items,
         }

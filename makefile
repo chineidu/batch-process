@@ -10,7 +10,7 @@
 all: format-fix
 
 # ===== ENVIRONMENT VARIABLES =====
-COMPOSE_FILE := "docker-compose-dev.yml"
+COMPOSE_FILE := "docker-compose.yml"
 
 help:
 	@echo "Ruff Formatting and Linting Makefile"

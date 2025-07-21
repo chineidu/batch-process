@@ -5,7 +5,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routes.v1 import health, prediction
+from src.api.routes.v1 import health, prediction, status
 from src.api.utilities import lifespan
 from src.config import app_config
 
@@ -43,8 +43,9 @@ def create_application() -> FastAPI:
     )
 
     # Include routers
-    app.include_router(prediction.router, prefix=api_config.prefix)
     app.include_router(health.router, prefix=api_config.prefix)
+    app.include_router(prediction.router, prefix=api_config.prefix)
+    app.include_router(status.router, prefix=api_config.prefix)
 
     return app
 

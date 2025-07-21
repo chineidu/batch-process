@@ -16,7 +16,8 @@ services:
       test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
   postgres: # 2nd service
     image: postgres:17.5-bookworm
@@ -34,7 +35,8 @@ services:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d celery_db"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
   celery-worker: # 3rd service
     image: chineidu/celery-worker:v1
