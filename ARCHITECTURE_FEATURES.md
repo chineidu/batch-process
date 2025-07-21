@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD033 -->
 # Architecture and Features
 
 This repository outlines a system designed for batch processing, likely involving machine learning model predictions and data handling. The architecture is composed of several key components:
@@ -38,6 +39,8 @@ The system follows a microservices-like pattern, leveraging a message queue for 
 8. **Containerization & Deployment:**
     - `Dockerfile` and `docker-compose-dev.yml` indicate containerization for development and potentially deployment.
     - The `rmq-app/` directory with Helm charts suggests deployment orchestration, likely for RabbitMQ and potentially the worker/API services.
+
+<img src="static-files/architecture.png" alt="Architecture Diagram" width="500" height="400"/>
 
 ## Key Features
 

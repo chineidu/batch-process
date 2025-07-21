@@ -28,6 +28,6 @@ async def task_status(task_id: str) -> APITaskStatusSchema:
         "task_id": task_id,
         "num_records": len(result) if result else 0,
         "status": task_result.status,
-        "processing_time": task_result.result["processing_time"],
+        "processing_time": task_result.result["processing_time"] if result else 0,
         "result": result,
     })
