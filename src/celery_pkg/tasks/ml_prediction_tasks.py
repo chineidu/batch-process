@@ -3,11 +3,10 @@ import time
 from datetime import datetime
 from typing import Any
 
-from celery import chord, current_task, group
+from celery import chord, current_task, group, shared_task
 from sqlalchemy import insert
 
 from src import create_logger
-from src.celery_pkg import celery_app
 from src.database.db_models import MLTask, PersonLog, PredictionLog, PredictionProcessingJobLog, get_db_session
 from src.ml.utils import _get_prediction, get_batch_prediction
 from src.schemas import JobProcessingSchema, ModelOutput, MultiPersonsSchema, PersonSchema
@@ -17,7 +16,7 @@ logger = create_logger(name="ml_prediction")
 
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
 # meaning that we need to use `self` and this provides additional functionality like retries, etc
-@celery_app.task(bind=True, base=MLTask)
+@shared_task(bind=True, base=MLTask)
 def process_single_data(self, data: dict[str, Any]) -> dict[str, Any]:  # noqa: ANN001, ARG001
     """
     Process a single person data.
@@ -68,7 +67,7 @@ def process_single_data(self, data: dict[str, Any]) -> dict[str, Any]:  # noqa: 
 
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
 # meaning that we need to use `self` and this provides additional functionality like retries, etc
-@celery_app.task(bind=True, base=MLTask)
+@shared_task(bind=True, base=MLTask)
 def process_ml_data_chunk(self, chunk_data: list[dict[str, Any]], chunk_id: int) -> dict[str, Any]:  # noqa: ANN001, ARG001
     """
     Process a chunk of data and return the processed data, processing time, and item count.
@@ -126,7 +125,7 @@ def process_ml_data_chunk(self, chunk_data: list[dict[str, Any]], chunk_id: int)
         raise self.retry(exc=e) from e
 
 
-@celery_app.task
+@shared_task
 def combine_processed_chunks(chunked_results: list[dict[str, Any]]) -> dict[str, Any]:
     """
     Combine results from multiple processed data chunks.
@@ -185,7 +184,7 @@ def combine_processed_chunks(chunked_results: list[dict[str, Any]]) -> dict[str,
         raise e
 
 
-@celery_app.task
+@shared_task
 def process_bulk_data(data: list[list[dict[str, Any]]]) -> dict[str, Any]:
     """
     Dispatch a bulk data processing job using Celery.
@@ -219,7 +218,7 @@ def process_bulk_data(data: list[list[dict[str, Any]]]) -> dict[str, Any]:
         raise
 
 
-@celery_app.task
+@shared_task
 def ml_process_large_dataset(data: list[Any], chunk_size: int = 10) -> dict[str, Any]:
     """
     Process a large dataset by splitting into chunks and using chord

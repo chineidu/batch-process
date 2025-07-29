@@ -2,15 +2,16 @@
 from datetime import datetime, timedelta
 from typing import Any
 
+from celery.app import shared_task
+
 from src import create_logger
-from src.celery_pkg import celery_app
 from src.database import get_db_session
 from src.database.db_models import BaseTask, CeleryTasksLog, DataProcessingJobLog, EmailLog, TaskResult
 
 logger = create_logger(name="periodic_tasks")
 
 
-@celery_app.task
+@shared_task
 def cleanup_old_records() -> dict[str, Any]:
     """
     Clean up old records from the database
@@ -43,7 +44,7 @@ def cleanup_old_records() -> dict[str, Any]:
         raise
 
 
-@celery_app.task(bind=True, base=BaseTask)
+@shared_task(bind=True, base=BaseTask)
 def health_check(self) -> dict[str, Any] | dict[str, str]:  # noqa: ANN001, ARG001
     """
     Perform system health check

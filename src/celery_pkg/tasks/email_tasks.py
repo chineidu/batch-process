@@ -3,10 +3,9 @@ from datetime import datetime
 from typing import Any
 
 import numpy as np
-from celery import group
+from celery import group, shared_task
 
 from src import create_logger
-from src.celery_pkg import celery_app
 from src.database import get_db_session
 from src.database.db_models import BaseTask, EmailLog
 from src.schemas import EmailSchema
@@ -18,7 +17,7 @@ rng = np.random.default_rng(42)
 
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
 # meaning that we need to use `self` and this provides additional functionality like retries, etc
-@celery_app.task(bind=True, base=BaseTask)
+@shared_task(bind=True, base=BaseTask)
 def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:  # noqa: ANN001, ARG001
     """Send an email to a recipient with the given subject and body.
 
@@ -88,7 +87,7 @@ def send_email(self, recipient: str, subject: str, body: str) -> dict[str, Any]:
         raise self.retry(exc=e, countdown=5) from e
 
 
-@celery_app.task
+@shared_task
 def send_bulk_emails(emails: list[dict[str, str]]) -> dict[str, Any]:
     """Send multiple emails asynchronously using Celery tasks.
 

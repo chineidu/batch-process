@@ -20,6 +20,7 @@
     - [Build Images](#build-images)
     - [Run Services](#run-services)
     - [Configure Docker Compose](#configure-docker-compose)
+    - [Kill Unwanted Processes](#kill-unwanted-processes)
   - [Architecture and Features](#architecture-and-features)
     - [Architecture Overview](#architecture-overview)
   - [Key Features](#key-features)
@@ -223,6 +224,18 @@ docker compose watch
 - In essence, docker compose watch provides a live development environment where:
   - the project code is automatically kept in sync between the host machine and the running container, excluding the virtual environment.
   - The Docker image for the worker service is automatically rebuilt whenever the project's configuration file (`pyproject.toml`) is modified.
+
+### Kill Unwanted Processes
+
+- If a port is currently unavailable, run the commands below.
+
+```sh
+# e.g. port=5432
+sudo lsof -i :5432
+
+# Kill the processes using the process IDs
+sudo kill -9 <process-id> 
+```
 
 ## Architecture and Features
 

@@ -3,10 +3,9 @@ import time
 from datetime import datetime
 from typing import Any
 
-from celery import chord, current_task, group
+from celery import chord, current_task, group, shared_task
 
 from src import create_logger
-from src.celery_pkg import celery_app
 from src.database import get_db_session
 from src.database.db_models import BaseTask, DataProcessingJobLog
 from src.schemas import JobProcessingSchema
@@ -16,7 +15,7 @@ logger = create_logger(name="data_processing")
 
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
 # meaning that we need to use `self` and this provides additional functionality like retries, etc
-@celery_app.task(bind=True, base=BaseTask)
+@shared_task(bind=True, base=BaseTask)
 def process_data_chunk(self, chunk_data: list[str], chunk_id: int) -> dict[str, Any | None | float | int]:  # noqa: ANN001, ARG001
     """
     Process a chunk of data
@@ -74,7 +73,7 @@ def process_data_chunk(self, chunk_data: list[str], chunk_id: int) -> dict[str, 
         raise self.retry(exc=e) from e
 
 
-@celery_app.task
+@shared_task
 def combine_processed_chunks(chunk_results: list[Any]) -> dict[str, Any]:
     """
     Combine results from multiple data processing chunks
@@ -123,7 +122,7 @@ def combine_processed_chunks(chunk_results: list[Any]) -> dict[str, Any]:
         raise
 
 
-@celery_app.task
+@shared_task
 def process_large_dataset(data: list[Any], chunk_size: int = 10) -> dict[str, Any]:
     """
     Process a large dataset by splitting into chunks and using chord
