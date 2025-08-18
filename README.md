@@ -239,7 +239,7 @@ sudo kill -9 <process-id>
 
 ## Architecture and Features
 
-This repository outlines a system designed for batch processing, likely involving machine learning model predictions and data handling. The architecture is composed of several key components:
+This repository outlines a system designed for batch processing involving machine learning model predictions and data handling. The architecture is composed of several key components:
 
 ### Architecture Overview
 
