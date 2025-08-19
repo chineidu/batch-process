@@ -42,39 +42,20 @@ class DatabasePool:
         logger.info("Database connection pool initialized")
 
     @contextmanager
-    def get_session(self, max_retries: int = 3) -> Generator[Session, None, None]:
-        """Get a database session with automatic retry."""
-        session = None
-        retry_delay = 1.0
-
-        for attempt in range(max_retries + 1):
-            if self._session_factory:
-                try:
-                    session = self._session_factory()
-                    yield session
-                    session.commit()
-                    return
-
-                except (DisconnectionError, OperationalError):
-                    if session:
-                        session.rollback()
-                        session.close()
-                        session = None
-
-                    if attempt < max_retries:
-                        logger.warning(f"DB connection failed (attempt {attempt + 1}), retrying in {retry_delay}s...")
-                        time.sleep(retry_delay)
-                        retry_delay *= 2  # Exponential backoff
-                    else:
-                        logger.error(f"DB connection failed after {max_retries + 1} attempts")
-                        raise
-
-                except Exception as e:
-                    if session:
-                        session.rollback()
-                        session.close()
-                    logger.error(f"Database operation failed: {e}")
-                    raise
+    def get_session(self) -> Generator[Session, None, None]:
+        """Get a database session."""
+        if not self._session_factory:
+            raise RuntimeError("Session factory not initialized")
+        
+        session = self._session_factory()
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     def health_check(self) -> bool:
         """Check if database is healthy."""
