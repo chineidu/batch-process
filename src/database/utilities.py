@@ -32,8 +32,8 @@ class DatabasePool:
             poolclass=QueuePool,
             pool_size=10,  # Keep 10 connections in pool
             max_overflow=20,  # Allow N extra connections
-            pool_timeout=30,  # Wait N seconds for connection
-            pool_recycle=3600,  # Recycle connections after 1 hour
+            pool_timeout=10,  # Wait N seconds for connection (fail fast)
+            pool_recycle=1_800,  # Recycle connections after 30 mins
             pool_pre_ping=True,  # Test connections before use
             echo=False,
         )
