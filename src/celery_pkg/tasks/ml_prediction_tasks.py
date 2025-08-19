@@ -153,7 +153,7 @@ def combine_processed_chunks(chunked_results: list[dict[str, Any]]) -> dict[str,
 
         for result in sorted_results:
             input_data.extend(result["input_data"])
-            combined_data.extend(result["output_data"])
+            combined_data.extend(result["response"])
             processing_time += result["processing_time"]
             item_count += result["item_count"]
 
@@ -185,13 +185,13 @@ def combine_processed_chunks(chunked_results: list[dict[str, Any]]) -> dict[str,
 
 
 @shared_task
-def process_bulk_data(data: list[list[dict[str, Any]]]) -> dict[str, Any]:
+def process_bulk_data(data_chunks: list[list[dict[str, Any]]]) -> dict[str, Any]:
     """
     Dispatch a bulk data processing job using Celery.
 
     Parameters
     ----------
-    data : list[list[dict[str, Any]]]
+    data_chunks : list[list[dict[str, Any]]]
         List of data chunks to be processed in bulk.
 
     Returns
@@ -201,7 +201,7 @@ def process_bulk_data(data: list[list[dict[str, Any]]]) -> dict[str, Any]:
         and the group ID for tracking the job.
     """
     try:
-        job = group(process_ml_data_chunk.s(chunk, i) for i, chunk in enumerate(data))
+        job = group(process_ml_data_chunk.s(chunk, i) for i, chunk in enumerate(data_chunks))
         result = job.apply_async()
         # Get individual task IDs
         task_ids = [child.id for child in result.children]
@@ -221,20 +221,47 @@ def process_bulk_data(data: list[list[dict[str, Any]]]) -> dict[str, Any]:
 @shared_task
 def ml_process_large_dataset(data: list[Any], chunk_size: int = 10) -> dict[str, Any]:
     """
-    Process a large dataset by splitting into chunks and using chord
+    Process a large dataset by splitting it into chunks and executing parallel processing using Celery chords.
+
+    Parameters
+    ----------
+    data : list[Any]
+        The large dataset to be processed, represented as a list of any type.
+    chunk_size : int, optional
+        The size of each chunk for splitting the dataset. Defaults to 10.
+
+    Returns
+    -------
+    dict[str, Any]
+        A dictionary containing processing metadata, including:
+            - 'status' (str): Current status of the job ("dispatched")
+            - 'total_items' (int): Total number of items in the original dataset
+            - 'chunks' (int): Number of chunks the data was split into
+            - 'chord_id' (str): The Celery task ID of the dispatched chord
+
+    Raises
+    ------
+    Exception
+        Re-raises any exception that occurs during processing dispatch.
     """
     try:
-        # Split data into chunks
+        # Split the input data into smaller chunks of specified size
+        # This allows for parallel processing of large datasets
         chunks: list[list[Any]] = [data[i : i + chunk_size] for i in range(0, len(data), chunk_size)]
 
-        # Create a chord: process chunks in parallel using `group`, then combine results using `chord`
+        # Create a chord pattern for parallel processing:
+        # - group: Execute multiple `process_ml_data_chunk` tasks in parallel, one for each chunk
+        # - chord: After all chunks are processed, execute `combine_processed_chunks` callback
+        #          with the results from all the chunk processing tasks
         job = chord(
             group(process_ml_data_chunk.s(chunk, i) for i, chunk in enumerate(chunks)),
             combine_processed_chunks.s(),
         )
 
+        # Dispatch the chord asynchronously and get the result handle
         result = job.apply_async()
 
+        # Return metadata about the dispatched job for monitoring and tracking
         return {
             "status": "dispatched",
             "total_items": len(data),
@@ -243,5 +270,6 @@ def ml_process_large_dataset(data: list[Any], chunk_size: int = 10) -> dict[str,
         }
 
     except Exception as e:
+        # Log any errors that occur during job dispatch for debugging and monitoring
         logger.error(f"[+] Error dispatching large dataset processing: {e}")
         raise
