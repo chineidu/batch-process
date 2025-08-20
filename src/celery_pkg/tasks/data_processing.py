@@ -11,7 +11,7 @@ from src.database.db_models import BaseTask, DataProcessingJobLog
 from src.schemas import JobProcessingSchema
 
 logger = create_logger(name="data_processing")
-
+logger.propagate = False  # This prevents double logging to the root logger
 
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
 # meaning that we need to use `self` and this provides additional functionality like retries, etc
