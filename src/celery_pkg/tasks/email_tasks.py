@@ -11,7 +11,7 @@ from src.database.db_models import BaseTask, EmailLog
 from src.schemas import EmailSchema
 
 logger = create_logger(name="email_tasks")
-
+logger.propagate = False  # This prevents double logging to the root logger
 rng = np.random.default_rng(42)
 
 
