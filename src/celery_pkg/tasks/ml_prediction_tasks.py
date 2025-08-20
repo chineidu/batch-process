@@ -12,7 +12,7 @@ from src.ml.utils import _get_prediction, get_batch_prediction
 from src.schemas import JobProcessingSchema, ModelOutput, MultiPersonsSchema, PersonSchema
 
 logger = create_logger(name="ml_prediction")
-
+logger.propagate = False  # This prevents double logging to the root logger
 
 # Note: When `bind=True`, celery automatically passes the task instance as the first argument
 # meaning that we need to use `self` and this provides additional functionality like retries, etc
