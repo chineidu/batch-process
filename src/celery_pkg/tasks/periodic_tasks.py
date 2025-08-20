@@ -9,7 +9,7 @@ from src.database import get_db_session
 from src.database.db_models import BaseTask, CeleryTasksLog, DataProcessingJobLog, EmailLog, TaskResult
 
 logger = create_logger(name="periodic_tasks")
-
+logger.propagate = False  # This prevents double logging to the root logger
 
 @shared_task
 def cleanup_old_records() -> dict[str, Any]:
