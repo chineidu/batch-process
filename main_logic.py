@@ -183,3 +183,99 @@ def process_large_data(data: list[dict[str, Any]], chunk_size: int, run_id: str)
         "chord_id": result.id,
         "run_id": run_id,
     }
+
+# =================================================
+# consumer.py
+# =================================================
+import json
+import time
+from typing import Any
+
+import pika
+
+from src.config import app_config, app_settings
+from src.utilities import create_logger
+
+logger = create_logger(name="note")
+queue_name: str = app_config.queues.custom_queue
+
+
+def start_consumer(callback: callable) -> None:
+    """Start the RabbitMQ consumer."""
+
+    def on_message_callback(
+        channel: pika.channel.Channel,
+        method: pika.spec.Basic.Deliver,
+        properties: pika.spec.BasicProperties,  # noqa: ARG001
+        body: bytes,
+    ) -> Any:
+        """
+        Callback function to handle incoming messages.
+
+        Parameters
+        ----------
+        channel : pika.channel.Channel
+            The channel object from the RabbitMQ connection.
+        method : pika.spec.Basic.Deliver
+            The delivery method frame.
+        properties : pika.spec.BasicProperties
+            The message properties.
+        body : bytes
+            The message body.
+
+        Returns
+        -------
+        Any
+            The result of the callback function.
+        """
+        try:
+            data = json.loads(body)
+            logger.info(f"Received message length: {len(data)}")
+            channel.basic_ack(delivery_tag=method.delivery_tag)  # Acknowledge the message
+            return callback(data)
+
+        except Exception as e:
+            logger.error(f"Error processing message: {e}")
+            channel.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+
+    try:
+        connection = pika.BlockingConnection(pika.URLParameters(app_settings.rabbitmq_url))
+        channel = connection.channel()
+
+        # Declare queue
+        channel.queue_declare(queue=queue_name, durable=True)
+
+        # Set QoS
+        channel.basic_qos(prefetch_count=1)
+
+        # Setup consumer
+        channel.basic_consume(queue=queue_name, on_message_callback=on_message_callback, auto_ack=False)
+
+        logger.info(f"Starting consumer and listening to queue: {queue_name!r}")
+        channel.start_consuming()
+
+    except Exception as e:
+        logger.error(f"Consumer error: {e}")
+
+
+def process_data(data: dict[str, Any]) -> None:
+    """Process the incoming data from the RabbitMQ queue."""
+    try:
+        logger.info(f"Data processed: {json.dumps(data)[:50]}")
+
+    except Exception as e:
+        logger.error(f"Error processing data: {e}")
+        raise
+
+
+if __name__ == "__main__":
+    while True:
+        try:
+            start_consumer(process_data)
+        except Exception as e:
+            logger.error(f"Consumer failed to start: {e}")
+            time.sleep(5)
+
+        except KeyboardInterrupt:
+            logger.info("Consumer stopped by user.")
+            break
