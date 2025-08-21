@@ -18,6 +18,7 @@ services:
       timeout: 10s
       retries: 10
       start_period: 30s
+    restart: unless-stopped
 
   postgres: # 2nd service
     image: postgres:17.5-bookworm
@@ -37,6 +38,7 @@ services:
       timeout: 10s
       retries: 10
       start_period: 30s
+    restart: unless-stopped
 
   celery-worker: # 3rd service
     image: chineidu/celery-worker:v1
@@ -72,6 +74,7 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    restart: unless-stopped
 
   celery-prediction-worker: # 3rd service (copy)
     image: chineidu/celery-worker:v1
@@ -99,6 +102,7 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    restart: unless-stopped
 
   celery-beat: # 4th service
       image: chineidu/celery-worker:v1
@@ -116,6 +120,7 @@ services:
           condition: service_healthy
         postgres:
           condition: service_healthy
+      restart: unless-stopped
 
   flower: # 5th service
       image: chineidu/celery-worker:v1
@@ -137,6 +142,7 @@ services:
           condition: service_healthy
         postgres:
           condition: service_healthy
+      restart: unless-stopped
   api: # 6th service
     image: chineidu/celery-worker:v1
     build:
@@ -162,6 +168,7 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    restart: unless-stopped
 
 # Named volumes ONLY!
 # Persist data outside the lifecycle of the container.
