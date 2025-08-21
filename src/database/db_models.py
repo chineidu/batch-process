@@ -138,32 +138,6 @@ class PredictionLog(Base):
         return f"{self.__class__.__name__}(data={self.data!r}, status={self.status!r}, created_at={self.created_at!r})"
 
 
-class TaskResult(Base):
-    """Data model for storing task results."""
-
-    __tablename__: str = "task_results"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    task_id: Mapped[str] = mapped_column("taskId", String(50), unique=True, index=True)
-    task_name: Mapped[str] = mapped_column("taskName", String(50), index=True)
-    status: Mapped[str] = mapped_column(String(20), default="pending")
-    result: Mapped[dict[str, Any]] = mapped_column(JSON)
-    error_message: Mapped[str] = mapped_column("errorMessage", Text)
-    created_at: Mapped[str | None] = mapped_column("createdAt", DateTime(timezone=True), default=func.now())
-    completed_at: Mapped[datetime] = mapped_column("completedAt", DateTime(timezone=True), nullable=True)
-
-    def __repr__(self) -> str:
-        """
-        Returns a string representation of the NERData object.
-
-        Returns
-        -------
-        str
-        """
-        return (
-            f"{self.__class__.__name__}(task_id={self.task_id!r}, task_name={self.task_name!r}, status={self.status!r})"
-        )
-
-
 class EmailLog(Base):
     """Data model for storing email logs."""
 
@@ -244,33 +218,40 @@ class DataProcessingJobLog(Base):
 
 
 # Celery specific
-class CeleryTaskMeta(Base):
-    """Data model for storing Celery task meta."""
+class CeleryTaskCleanup(Base):
+    """Read-only model for Celery task cleanup operations.
 
-    __tablename__: str = "celery_task_meta"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    task_id: Mapped[str] = mapped_column("taskId", String(255), unique=True, index=True)
-    status: Mapped[str] = mapped_column(String(50), default="PENDING")
-    result: MappedColumn[Any] = mapped_column(LargeBinary)
-    date_done: Mapped[str] = mapped_column("dateDone", DateTime(timezone=True), nullable=True)
-    traceback: Mapped[str] = mapped_column(String)
-    name: Mapped[str] = mapped_column(String(255))
-    args: MappedColumn[Any] = mapped_column(LargeBinary)
-    kwargs: MappedColumn[Any] = mapped_column(LargeBinary)
-    worker: Mapped[str] = mapped_column(String(255))
-    retries: Mapped[int] = mapped_column(Integer, default=0)
-    queue: Mapped[str] = mapped_column(String(255))
+    This model reflects the actual Celery table structure with an 'id' column
+    that Celery expects, separate from your application models.
+    """
+
+    __tablename__: str = "celery_taskmeta"
+    __table_args__: dict[str, Any] = {"extend_existing": True}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    task_id: Mapped[str] = mapped_column(String(155), unique=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(50), nullable=False)
+    result: Mapped[bytes] = mapped_column(LargeBinary, nullable=True)
+    date_done: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    traceback: Mapped[str] = mapped_column(Text, nullable=True)
+    name: Mapped[str] = mapped_column(String(155), nullable=True)
+    args: Mapped[str] = mapped_column(Text, nullable=True)
+    kwargs: Mapped[str] = mapped_column(Text, nullable=True)
+    worker: Mapped[str] = mapped_column(String(155), nullable=True)
+    retries: Mapped[int] = mapped_column(Integer, nullable=True, default=0)
+    queue: Mapped[str] = mapped_column(String(155), nullable=True)
 
     def __repr__(self) -> str:
         """
-        Returns a string representation of the email log.
+        Returns a string representation of the CeleryTaskCleanup object.
 
         Returns
         -------
         str
         """
         return (
-            f"{self.__class__.__name__}(task_id={self.task_id!r}, date_done={self.date_done!r} status={self.status!r})"
+            f"{self.__class__.__name__}(id={self.id!r}, task_id={self.task_id!r}, status={self.status!r}, "
+            f"date_done={self.date_done!r})"
         )
 
 
